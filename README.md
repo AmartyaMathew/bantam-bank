@@ -11,6 +11,8 @@ FAIR-informed report to GitHub Pages. Security tests and their small CI-only
 Compose harness remain because they are deployment gates, not optional demo
 assets.
 
+Bantam is deployed here: https://bantam.live/login
+
 ## Deploy Bantam on GCP
 
 For a three-month evaluation, a Compute Engine `e2-medium` (2 vCPU, 4 GiB RAM)
