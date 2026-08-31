@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "legal_entity": "Bantam Bank (synthetic demonstration entity)",
+  "reporting_currency": "GBP",
+  "fiscal_year": 2025,
+  "statement_of_scope": "Every figure below is an illustrative planning assumption for a synthetic bank. Bantam holds no real customers, deposits, or funds, and these values are not audited accounts, regulatory returns, or a claim about any real firm. Replace them with finance-owned figures before any decision use.",
+  "income": {
+    "annual_revenue_gbp": 48000000,
+    "net_income_gbp": 5400000,
+    "operating_expenses_gbp": 41200000
+  },
+  "balance_sheet": {
+    "total_assets_gbp": 612000000,
+    "customer_deposits_gbp": 498000000,
+    "shareholder_equity_gbp": 74000000,
+    "liquid_reserves_gbp": 96000000
+  },
+  "operations": {
+    "active_customers": 240000,
+    "daily_payment_volume_gbp": 7400000,
+    "average_payment_gbp": 184,
+    "employees": 310
+  },
+  "risk_appetite": {
+    "impact_tolerance_gbp": 2500000,
+    "maximum_credible_single_loss_gbp": 45000000,
+    "annual_security_budget_gbp": 3100000,
+    "cost_of_capital_pct": 11.5
+  },
+  "insurance": {
+    "cyber_cover_gbp": 25000000,
+    "retention_gbp": 500000
+  },
+  "regulatory": {
+    "regime": "UK FCA/PRA operational resilience and UK GDPR",
+    "maximum_penalty_pct_of_revenue": 4.0,
+    "notification_window_hours": 72
+  },
+  "notes": [
+    "Impact tolerance is the board's stated maximum tolerable annual loss for the important business services in scope.",
+    "Maximum credible single loss caps any one simulated event; it is anchored to liquid reserves plus insurable cover, not to total assets.",
+    "Cyber cover and retention are used to convert gross simulated loss into net retained loss."
+  ]
+}

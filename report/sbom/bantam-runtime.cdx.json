@@ -1,0 +1,416 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:4821eebe-a7f6-5a03-bded-aaf0bcfd90b5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:generic/bantam-bank-runtime@0.2.0",
+      "name": "bantam-bank-runtime",
+      "version": "0.2.0"
+    },
+    "tools": [
+      {
+        "vendor": "Bantam",
+        "name": "static runtime dependency inventory",
+        "version": "1"
+      }
+    ],
+    "properties": [
+      {
+        "name": "bantam:scope",
+        "value": "runtime dependencies only"
+      },
+      {
+        "name": "bantam:pyproject_sha256",
+        "value": "495c6a112fe96add75eb5a9e46b65113a61027d624cf621c975088fe4df8673b"
+      },
+      {
+        "name": "bantam:package_lock_sha256",
+        "value": "2a9a349a2cbcde99620ae803d01d642b97aa99bf7298af4ccaca1e9e6323fee7"
+      },
+      {
+        "name": "bantam:note",
+        "value": "This SBOM inventories declared runtime packages. Vulnerability results come from pip-audit and npm audit, not from this file alone."
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40tanstack/react-query@5.101.2",
+      "name": "@tanstack/react-query",
+      "version": "5.101.2",
+      "scope": "required",
+      "purl": "pkg:npm/%40tanstack/react-query@5.101.2",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "npm"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "web/package-lock.json:packages"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lucide-react@1.26.0",
+      "name": "lucide-react",
+      "version": "1.26.0",
+      "scope": "required",
+      "purl": "pkg:npm/lucide-react@1.26.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "npm"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "web/package-lock.json:packages"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/react@19.2.7",
+      "name": "react",
+      "version": "19.2.7",
+      "scope": "required",
+      "purl": "pkg:npm/react@19.2.7",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "npm"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "web/package-lock.json:packages"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/react-dom@19.2.7",
+      "name": "react-dom",
+      "version": "19.2.7",
+      "scope": "required",
+      "purl": "pkg:npm/react-dom@19.2.7",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "npm"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "web/package-lock.json:packages"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/react-router@8.3.0",
+      "name": "react-router",
+      "version": "8.3.0",
+      "scope": "required",
+      "purl": "pkg:npm/react-router@8.3.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "npm"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "web/package-lock.json:packages"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/bcrypt@5.0.0",
+      "name": "bcrypt",
+      "version": "5.0.0",
+      "scope": "required",
+      "purl": "pkg:pypi/bcrypt@5.0.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/cryptography@50.0.0",
+      "name": "cryptography",
+      "version": "50.0.0",
+      "scope": "required",
+      "purl": "pkg:pypi/cryptography@50.0.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/fastapi@0.141.1",
+      "name": "fastapi",
+      "version": "0.141.1",
+      "scope": "required",
+      "purl": "pkg:pypi/fastapi@0.141.1",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/nats-py@2.15.0",
+      "name": "nats-py",
+      "version": "2.15.0",
+      "scope": "required",
+      "purl": "pkg:pypi/nats-py@2.15.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/psycopg@3.3.4",
+      "name": "psycopg",
+      "version": "3.3.4",
+      "scope": "required",
+      "purl": "pkg:pypi/psycopg@3.3.4",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/psycopg-pool@3.3.1",
+      "name": "psycopg-pool",
+      "version": "3.3.1",
+      "scope": "required",
+      "purl": "pkg:pypi/psycopg-pool@3.3.1",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pydantic@2.13.4",
+      "name": "pydantic",
+      "version": "2.13.4",
+      "scope": "required",
+      "purl": "pkg:pypi/pydantic@2.13.4",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyjwt@2.13.0",
+      "name": "PyJWT",
+      "version": "2.13.0",
+      "scope": "required",
+      "purl": "pkg:pypi/pyjwt@2.13.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyotp@2.10.0",
+      "name": "pyotp",
+      "version": "2.10.0",
+      "scope": "required",
+      "purl": "pkg:pypi/pyotp@2.10.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/uvicorn@0.51.0",
+      "name": "uvicorn",
+      "version": "0.51.0",
+      "scope": "required",
+      "purl": "pkg:pypi/uvicorn@0.51.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/webauthn@3.0.0",
+      "name": "webauthn",
+      "version": "3.0.0",
+      "scope": "required",
+      "purl": "pkg:pypi/webauthn@3.0.0",
+      "properties": [
+        {
+          "name": "bantam:ecosystem",
+          "value": "pypi"
+        },
+        {
+          "name": "bantam:source_manifest",
+          "value": "pyproject.toml:project.dependencies"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/bantam-bank-runtime@0.2.0",
+      "dependsOn": [
+        "pkg:npm/%40tanstack/react-query@5.101.2",
+        "pkg:npm/lucide-react@1.26.0",
+        "pkg:npm/react@19.2.7",
+        "pkg:npm/react-dom@19.2.7",
+        "pkg:npm/react-router@8.3.0",
+        "pkg:pypi/bcrypt@5.0.0",
+        "pkg:pypi/cryptography@50.0.0",
+        "pkg:pypi/fastapi@0.141.1",
+        "pkg:pypi/nats-py@2.15.0",
+        "pkg:pypi/psycopg@3.3.4",
+        "pkg:pypi/psycopg-pool@3.3.1",
+        "pkg:pypi/pydantic@2.13.4",
+        "pkg:pypi/pyjwt@2.13.0",
+        "pkg:pypi/pyotp@2.10.0",
+        "pkg:pypi/uvicorn@0.51.0",
+        "pkg:pypi/webauthn@3.0.0"
+      ]
+    },
+    {
+      "ref": "pkg:npm/%40tanstack/react-query@5.101.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/lucide-react@1.26.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/react@19.2.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/react-dom@19.2.7",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:npm/react-router@8.3.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/bcrypt@5.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/cryptography@50.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/fastapi@0.141.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/nats-py@2.15.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/psycopg@3.3.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/psycopg-pool@3.3.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pydantic@2.13.4",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pyjwt@2.13.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pyotp@2.10.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/uvicorn@0.51.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/webauthn@3.0.0",
+      "dependsOn": []
+    }
+  ]
+}

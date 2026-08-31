@@ -1,0 +1,20 @@
+[Unit]
+Description=Create and retain a Bantam PostgreSQL backup
+Requires=docker.service
+After=docker.service
+ConditionPathExists=/opt/bantam/app/deploy/digitalocean/production.env
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/bantam/app
+ExecStart=/opt/bantam/app/deploy/digitalocean/backup-postgres.sh
+Environment=BACKUP_RETENTION_DAYS=14
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/bantam/app/deploy/digitalocean/runtime

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the Bantam PostgreSQL backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+RandomizedDelaySec=30m
+Persistent=true
+Unit=bantam-backup.service
+
+[Install]
+WantedBy=timers.target
+

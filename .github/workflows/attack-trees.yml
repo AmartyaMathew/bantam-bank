@@ -1,0 +1,82 @@
+name: Refresh curated attack trees
+
+# GitHub Pages cannot hold a secret, so this is where a Mistral key belongs when
+# it needs to sit behind the published trees. The key is read from repository
+# secrets by this runner, never written into the Pages artifact, and the result
+# is uploaded for human review rather than committed automatically: a model
+# wrote the wording, so a person reads it before it ships.
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why the trees are being regenerated
+        required: false
+        default: Scheduled refresh against the current graph
+
+permissions:
+  contents: read
+
+concurrency:
+  group: attack-trees
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate and validate attack trees
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install pinned development tools
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify the catalogue the trees will cite
+        run: >-
+          python -m bantam.workflow_graph check
+          --root .
+          --output bantam/workflow_catalog.json
+
+      - name: Generate attack trees with Mistral
+        env:
+          ASPIS_MISTRAL_API_KEY: ${{ secrets.ASPIS_MISTRAL_API_KEY }}
+        run: >-
+          python -m scripts.generate_attack_trees
+          --root .
+          --output report/attack-trees.generated.json
+
+      - name: Prove the report still builds with the generated trees
+        run: >-
+          python -m scripts.resilience_report build
+          --root .
+          --attack-trees report/attack-trees.generated.json
+          --output _site
+          --commit local
+
+      - name: Upload the generated trees for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: attack-trees
+          path: report/attack-trees.generated.json
+
+      - name: Explain the next step
+        run: |
+          {
+            echo '## Generated attack trees'
+            echo
+            echo 'Reason: ${{ inputs.reason }}'
+            echo
+            echo 'The trees passed structural and citation validation and the report'
+            echo 'built with them. Download the `attack-trees` artifact, read the'
+            echo 'wording, and commit it over `report/attack-trees.json` if it is good.'
+            echo
+            echo 'No secret reached the published site: the key stays in this runner.'
+          } >> "$GITHUB_STEP_SUMMARY"

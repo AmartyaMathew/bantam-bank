@@ -1,0 +1,12 @@
+# CI-only override for host-driven integration tests.
+#
+# The default Compose network is deliberately internal, which means published
+# loopback ports are not reachable from the GitHub runner. CI needs the host-side
+# pytest process to reach the synthetic API and PostgreSQL fixtures. This override
+# changes only that network flag; port bindings remain restricted to 127.0.0.1.
+# Never use this file as a production deployment configuration.
+name: bantam
+
+networks:
+  bantam-internal:
+    internal: false

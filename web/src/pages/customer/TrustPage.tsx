@@ -1,0 +1,12 @@
+import { useMutation } from "@tanstack/react-query";
+import { BadgeCheck, Braces, CheckCircle2, FileKey2, ShieldCheck } from "lucide-react";
+import { api } from "../../api";
+import { Button, CopyButton, PageHeader, Panel, StatusPill, useToast } from "../../components/ui";
+import { formatDate, shortId } from "../../utils";
+
+export function TrustPage() {
+  const toast = useToast();
+  const mutation = useMutation({ mutationFn: api.issueAccountClaim, onError: (error) => toast.error("Could not issue claim", error) });
+  const claim = mutation.data;
+  return <div className="page-stack"><PageHeader eyebrow="Federated identity" title="Account-status claim" description="Create a short-lived, privacy-preserving statement about your verified Bantam relationship." /><div className="trust-grid"><Panel className="trust-explainer"><span className="feature-icon"><FileKey2 size={21} /></span><h2>Prove status without sharing your balance</h2><p>The claim confirms whether you have an active account and your KYC status. It does not disclose transaction history, account references or funds.</p><ul className="check-list"><li><CheckCircle2 size={17} /> Valid for 24 hours</li><li><CheckCircle2 size={17} /> Bound to a synthetic decentralised identifier</li><li><CheckCircle2 size={17} /> Issuance recorded in the audit trail</li></ul><Button onClick={() => mutation.mutate()} disabled={mutation.isPending}><BadgeCheck size={17} /> {mutation.isPending ? "Issuing…" : "Issue fresh claim"}</Button></Panel><Panel className="claim-card">{!claim ? <div className="claim-placeholder"><span><ShieldCheck size={30} /></span><h3>No active claim</h3><p>Issue a claim to inspect the signed JWS shape used by this demonstration trust domain.</p></div> : <><div className="claim-card-head"><div><p className="eyebrow">Bantam trust service</p><h2>Account status verified</h2></div><StatusPill value={claim.has_active_account ? "ACTIVE" : "INACTIVE"} /></div><div className="claim-fields"><div><span>Issuer</span><strong>{claim.issuer}</strong></div><div><span>Subject</span><code>{shortId(claim.subject_id)}</code></div><div><span>KYC status</span><strong>{claim.kyc_status}</strong></div><div><span>Valid until</span><strong>{formatDate(claim.valid_until, true)}</strong></div></div><div className="claim-json"><div><span><Braces size={15} /> Claim payload</span><CopyButton value={JSON.stringify(claim, null, 2)} label="Copy JSON" /></div><pre>{JSON.stringify(claim, null, 2)}</pre></div></>}</Panel></div></div>;
+}

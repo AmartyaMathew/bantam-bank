@@ -1,0 +1,210 @@
+name: Security and quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  # Gitleaks resolves the exact PR commit range through GitHub's pull-request
+  # API. Keep the workflow token read-only while granting that single API view.
+  pull-requests: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python tests and AppSec
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install pinned development and security tools
+        run: python -m pip install -e '.[dev,security]'
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Verify deterministic workflow catalogue
+        run: >-
+          python -m bantam.workflow_graph check
+          --root .
+          --output bantam/workflow_catalog.json
+
+      - name: Run lint and formatting gates
+        run: make check
+
+      - name: Run Bandit, pip-audit, and local Semgrep policy
+        run: make security
+
+  web:
+    name: Web build and dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build the production SPA
+        run: npm run build
+
+      - name: Verify production Nginx proxy modes
+        run: ./test-nginx-config.sh
+
+      - name: Validate DigitalOcean production Compose
+        working-directory: .
+        run: ./deploy/digitalocean/validate-deployment.sh
+
+      - name: Validate DigitalOcean Caddy configuration
+        working-directory: .
+        run: >-
+          docker run --rm
+          --env BANTAM_DOMAIN=bantam.example.test
+          --env ACME_EMAIL=operator@example.test
+          --volume "$PWD/deploy/digitalocean/Caddyfile:/etc/caddy/Caddyfile:ro"
+          caddy:2.10-alpine
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+      - name: Exercise DigitalOcean certificate lifecycle
+        working-directory: .
+        run: ./deploy/digitalocean/test-certificate-lifecycle.sh
+
+  integration:
+    name: PostgreSQL authorization, ASVS evidence, and ledger invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TEST_API_URL: http://127.0.0.1:8080
+      TEST_DATABASE_URL: postgres://bantam:bantam@127.0.0.1:5433/bantam?sslmode=disable
+      ASPIS_TARGET_COMMIT: ${{ github.sha }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install integration-test dependencies
+        run: python -m pip install -e '.[dev]'
+
+      - name: Start isolated database, NATS, and API
+        run: >-
+          docker compose -f deploy/docker-compose.yml
+          -f deploy/docker-compose.ci.yml up
+          --wait --build -d postgres nats bantam-api
+
+      - name: Load deterministic synthetic data
+        run: >-
+          docker compose -f deploy/docker-compose.yml
+          -f deploy/docker-compose.ci.yml run --rm seed
+
+      - name: Exercise authorization and database invariants
+        id: asvs_tests
+        continue-on-error: true
+        run: >-
+          python -m pytest tests/integration
+          --junitxml=/tmp/bantam-asvs-junit.xml
+
+      - name: Normalize and render ASVS evidence
+        id: aspis_evidence
+        if: always()
+        shell: bash
+        run: |
+          python -m security.aspis.tools.asvs_junit \
+            --junit /tmp/bantam-asvs-junit.xml \
+            --catalog security/aspis/asvs/bantam-control-catalog.json \
+            --output /tmp/bantam-asvs-evidence.json \
+            --target-commit "$GITHUB_SHA"
+          set +e
+          python -m security.aspis.core.report \
+            --input /tmp/bantam-asvs-evidence.json \
+            --output /tmp/aspis-report \
+            --run-id "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --target-commit "$GITHUB_SHA"
+          report_status=$?
+          set -e
+          printf '%s\n' "$report_status" > /tmp/aspis-report/exit-code.txt
+
+      - name: Upload normalized ASVS evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aspis-asvs-${{ github.run_id }}
+          path: |
+            /tmp/bantam-asvs-evidence.json
+            /tmp/aspis-report
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce ASVS evidence result
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.asvs_tests.outcome }}" != "success" ]]; then
+            echo "The live integration suite did not complete successfully."
+            exit 1
+          fi
+          if [[ "${{ steps.aspis_evidence.outcome }}" != "success" ]]; then
+            echo "The normalized evidence collector did not complete."
+            exit 1
+          fi
+          test "$(cat /tmp/aspis-report/exit-code.txt)" -eq 0
+
+      - name: Print service logs after a failure
+        if: failure()
+        run: >-
+          docker compose -f deploy/docker-compose.yml
+          -f deploy/docker-compose.ci.yml logs --no-color --tail=200
+
+      - name: Remove synthetic services and volumes
+        if: always()
+        run: >-
+          docker compose -f deploy/docker-compose.yml
+          -f deploy/docker-compose.ci.yml down --volumes --remove-orphans
+
+  secrets:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Scan commits for credentials
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

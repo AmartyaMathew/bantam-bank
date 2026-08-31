@@ -1,0 +1,74 @@
+rules:
+  - id: bantam.python.dynamic-sql-fstring
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Do not interpolate values into SQL. Use Psycopg placeholders; suppress this
+      rule only for a reviewed, source-code constant projection list.
+    pattern: $CONNECTION.execute(f"...{$VALUE}...", ...)
+
+  - id: bantam.python.jwt-decode-without-algorithm-allowlist
+    languages: [python]
+    severity: ERROR
+    message: JWT verification must provide an explicit algorithm allowlist.
+    patterns:
+      - pattern: jwt.decode(...)
+      - pattern-not: jwt.decode(..., algorithms=[...], ...)
+
+  - id: bantam.python.dangerous-code-execution
+    languages: [python]
+    severity: ERROR
+    message: Dynamic code execution is prohibited in Bantam services.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+
+  - id: bantam.python.subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: shell=True introduces command-injection risk.
+    pattern-either:
+      - pattern: subprocess.run(..., shell=True, ...)
+      - pattern: subprocess.Popen(..., shell=True, ...)
+      - pattern: subprocess.call(..., shell=True, ...)
+
+  - id: bantam.python.unsafe-deserialization
+    languages: [python]
+    severity: ERROR
+    message: Unsafe deserialization is prohibited for untrusted data.
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+      - pattern: yaml.load(...)
+
+  - id: bantam.python.direct-request-client-host
+    languages: [python]
+    severity: ERROR
+    message: Resolve client addresses through bantam.security.client_ip.
+    paths:
+      exclude:
+        - /bantam/security.py
+    pattern: $REQUEST.client.host
+
+  - id: bantam.typescript.dangerous-html
+    languages: [typescript]
+    severity: ERROR
+    message: dangerouslySetInnerHTML can turn untrusted data into XSS.
+    pattern: <$ELEMENT dangerouslySetInnerHTML={...} ... />
+
+  - id: bantam.typescript.dynamic-eval
+    languages: [typescript]
+    severity: ERROR
+    message: Dynamic JavaScript execution is prohibited.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: bantam.generic.persisted-access-token
+    languages: [generic]
+    severity: ERROR
+    message: Bearer access tokens must not be persisted in browser storage.
+    paths:
+      include:
+        - /web/src/**
+    pattern-regex: "(?s)(localStorage|sessionStorage)\\.[a-zA-Z]+\\([^;]{0,500}access_token"

@@ -1,0 +1,1033 @@
+{
+  "version": 1,
+  "note": "Curated attack trees over Bantam's deterministic code graph. Every node cites a flow or graph node that the build verifies still exists. Structure and citations are checked; exploitability, likelihood and impact remain human assumptions.",
+  "trees": [
+    {
+      "tree_id": "tree:payment-diversion",
+      "name": "Unauthorised value movement from a customer account",
+      "plain_name": "Someone moves money out of a customer's account",
+      "business_service": "Sending and receiving synthetic GBP payments",
+      "summary": "An adversary obtains a usable customer session, satisfies or bypasses the step-up challenge on the transfer path, and completes a posting before the risk worker and reconciliation control surface it.",
+      "plain_summary": "A criminal gets into someone's online banking, gets past the extra security check that Bantam asks for on payments, and moves the money out before anyone notices something is wrong.",
+      "root_node_id": "attack:payment-root",
+      "nodes": [
+        {
+          "node_id": "attack:payment-root",
+          "kind": "GOAL",
+          "operator": "AND",
+          "title": "Post an unauthorised transfer that survives review",
+          "plain_title": "Take money out and keep it",
+          "description": "Reach the transfer endpoint with a session the bank accepts, satisfy the payment-time controls, and remain unreviewed long enough for the money to be gone.",
+          "plain_description": "Three things all have to happen: get into an account, get the payment approved, and not be caught quickly enough to stop it.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1078",
+              "name": "Valid Accounts",
+              "tactic": "Initial Access"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/transfers"
+          ],
+          "graph_node_ids": [
+            "route:POST:/v1/transfers",
+            "function:bantam.ledger.LedgerService.create_transfer"
+          ],
+          "existing_obstacles": [
+            "Transfers post inside a database transaction with balanced double-entry constraints, so a partial or unbalanced posting is rejected by PostgreSQL."
+          ]
+        },
+        {
+          "node_id": "attack:payment-session",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Obtain a session the API will accept",
+          "plain_title": "Get into a customer's account",
+          "description": "Any route that yields a valid authenticated session cookie for a customer principal is sufficient; the transfer path does not care how the session was obtained.",
+          "plain_description": "There is more than one way in, and the bank cannot tell the difference once someone is signed in. Only one of these needs to work.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1078.003",
+              "name": "Local Accounts",
+              "tactic": "Initial Access"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/auth/login"
+          ],
+          "graph_node_ids": [
+            "route:POST:/v1/auth/login",
+            "function:bantam.api.issue_session"
+          ],
+          "existing_obstacles": [
+            "Login attempts are counted per account and per originating IP in PostgreSQL, so untargeted guessing is throttled."
+          ]
+        },
+        {
+          "node_id": "attack:payment-phish",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Phish credentials and relay the step-up prompt",
+          "plain_title": "Trick the customer into handing over their sign-in details",
+          "description": "Harvest a password through a lookalike page and relay the resulting authentication prompt to the real site in real time.",
+          "plain_description": "Send the customer to a fake version of the bank's website, capture what they type, and use it on the real site straight away while they are still there.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1566",
+              "name": "Phishing",
+              "tactic": "Initial Access"
+            },
+            {
+              "technique_id": "T1111",
+              "name": "Multi-Factor Authentication Interception",
+              "tactic": "Credential Access"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/auth/login",
+            "default:post:/v1/auth/mfa/totp"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.enforce_auth_rate_limit"
+          ],
+          "existing_obstacles": [
+            "A passkey factor is bound to the site's origin, so a relayed prompt from a lookalike domain does not produce a usable assertion."
+          ]
+        },
+        {
+          "node_id": "attack:payment-stuffing",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Replay credentials leaked from an unrelated service",
+          "plain_title": "Reuse a password leaked from somewhere else",
+          "description": "Submit username and password pairs from a third-party breach against the login route, spread widely enough to stay under per-account and per-IP counters.",
+          "plain_description": "Take passwords that leaked from some other company and try them here, slowly and from many places, hoping a customer reused one.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1110.004",
+              "name": "Credential Stuffing",
+              "tactic": "Credential Access"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/auth/login"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.enforce_auth_rate_limit",
+            "function:bantam.auth.AuthService.issue"
+          ],
+          "existing_obstacles": [
+            "Rate-limit keys are stored hashed and counted in the database, so the limit holds across replicas and restarts rather than per process."
+          ]
+        },
+        {
+          "node_id": "attack:payment-approval",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Satisfy the payment-time step-up control",
+          "plain_title": "Get past the extra check on the payment itself",
+          "description": "The transfer path requires a strong customer authentication challenge and an idempotency key; either the challenge is answered or the requirement is not reached.",
+          "plain_description": "Signing in is not enough. Bantam asks for a second confirmation before it moves money, so that has to be dealt with too.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1556",
+              "name": "Modify Authentication Process",
+              "tactic": "Defense Evasion"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/sca/challenges",
+            "default:post:/v1/transfers"
+          ],
+          "graph_node_ids": [
+            "route:POST:/v1/sca/challenges",
+            "function:bantam.sca.SCAService.create"
+          ],
+          "existing_obstacles": [
+            "Challenge codes are stored hashed with an attempt counter, so guessing a code is bounded rather than open-ended."
+          ]
+        },
+        {
+          "node_id": "attack:payment-social",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Social-engineer the challenge code from the account holder",
+          "plain_title": "Talk the customer into reading out the confirmation code",
+          "description": "Contact the account holder under a pretext during the session and collect the challenge code before it expires.",
+          "plain_description": "Phone the customer pretending to be the bank's fraud team and ask them to read out the code that has just arrived.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1598",
+              "name": "Phishing for Information",
+              "tactic": "Reconnaissance"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/sca/challenges"
+          ],
+          "graph_node_ids": [
+            "function:bantam.sca.SCAService.validate_and_consume"
+          ],
+          "existing_obstacles": [
+            "The challenge is bound to a specific source account, destination account and amount, so a code collected for one payment does not authorise a different one."
+          ]
+        },
+        {
+          "node_id": "attack:payment-small",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Stay under the amount that triggers a challenge",
+          "plain_title": "Keep each payment small enough to avoid the extra check",
+          "description": "Split the value across payments below the step-up threshold so the challenge requirement is never reached.",
+          "plain_description": "Instead of one big payment, send lots of small ones that sit under whatever amount makes the bank ask for extra confirmation.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1027",
+              "name": "Obfuscated Files or Information",
+              "tactic": "Defense Evasion"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/transfers"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.create_transfer",
+            "function:bantam.ledger.LedgerService.create_transfer"
+          ],
+          "existing_obstacles": [
+            "Every posting is written to an append-only ledger and republished through the outbox, so a pattern of small payments still leaves a complete, immutable trail."
+          ]
+        },
+        {
+          "node_id": "attack:payment-quiet",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Delay detection past the point of recovery",
+          "plain_title": "Avoid being noticed until it is too late",
+          "description": "Value that is detected quickly can be reversed by an operator; the attacker needs the risk worker, notifications, or the reconciliation control to be slow or unattended.",
+          "plain_description": "The bank can undo a payment if it spots the problem in time, so the attacker needs the alarm to be quiet or ignored for long enough.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1562",
+              "name": "Impair Defenses",
+              "tactic": "Defense Evasion"
+            }
+          ],
+          "flow_ids": [
+            "default:system:async-risk-worker",
+            "default:post:/v1/reconciliation/runs"
+          ],
+          "graph_node_ids": [
+            "function:bantam.workers.create_risk_alert",
+            "function:bantam.ledger.LedgerService.reconcile"
+          ],
+          "existing_obstacles": [
+            "Reversal appends compensating entries rather than rewriting history, so a late detection still produces a correct and auditable ledger."
+          ]
+        },
+        {
+          "node_id": "attack:payment-offhours",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Act while operator review is unstaffed",
+          "plain_title": "Do it when nobody is watching",
+          "description": "Time the payment for a window in which the risk queue is generated but not worked, so alerting exists without a decision behind it.",
+          "plain_description": "Move the money at a time — a weekend, a public holiday, the middle of the night — when the alert lands in a queue that nobody is reading.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1029",
+              "name": "Scheduled Transfer",
+              "tactic": "Exfiltration"
+            }
+          ],
+          "flow_ids": [
+            "default:system:async-risk-worker",
+            "default:get:/v1/audit/events"
+          ],
+          "graph_node_ids": [
+            "function:bantam.workers.create_risk_alert",
+            "function:bantam.api.list_risk_alerts"
+          ],
+          "existing_obstacles": [
+            "Alerts persist in the risk queue rather than expiring, so the work is delayed rather than lost."
+          ]
+        },
+        {
+          "node_id": "attack:payment-outbox",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Exploit a stalled outbox to suppress downstream signals",
+          "plain_title": "Rely on the alerting pipeline being stuck",
+          "description": "If the transactional outbox is not draining, notification and risk consumers see nothing even though the ledger is correct.",
+          "plain_description": "Bantam sends its alerts through a queue. If that queue is jammed, the payment still happens but the warnings never get delivered.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1489",
+              "name": "Service Stop",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:system:async-outbox-publish"
+          ],
+          "graph_node_ids": [
+            "function:bantam.events.OutboxPublisher.publish_batch",
+            "function:bantam.api.list_notifications"
+          ],
+          "existing_obstacles": [
+            "Outbox rows stay unpublished rather than being dropped, and expired claims are recovered, so a stall delays delivery instead of losing events."
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "attack:payment-root",
+          "attack:payment-session"
+        ],
+        [
+          "attack:payment-root",
+          "attack:payment-approval"
+        ],
+        [
+          "attack:payment-root",
+          "attack:payment-quiet"
+        ],
+        [
+          "attack:payment-session",
+          "attack:payment-phish"
+        ],
+        [
+          "attack:payment-session",
+          "attack:payment-stuffing"
+        ],
+        [
+          "attack:payment-approval",
+          "attack:payment-social"
+        ],
+        [
+          "attack:payment-approval",
+          "attack:payment-small"
+        ],
+        [
+          "attack:payment-quiet",
+          "attack:payment-offhours"
+        ],
+        [
+          "attack:payment-quiet",
+          "attack:payment-outbox"
+        ]
+      ],
+      "assumptions": [
+        "Credential theft happens outside Bantam, on the customer's device or another service.",
+        "An operator can reverse a payment while it is still under review."
+      ],
+      "limitations": [
+        "Nothing here demonstrates that any of these steps actually works against Bantam; the graph shows structure, not exploitability.",
+        "The step-up threshold is a business assumption and is not read from the code graph."
+      ],
+      "scenario_id": "payment-integrity"
+    },
+    {
+      "tree_id": "tree:operator-abuse",
+      "name": "Privileged operator access abused against customer accounts",
+      "plain_name": "Someone takes over a bank staff account and uses its powers",
+      "business_service": "Bank administration: customer records, account status and reversals",
+      "summary": "An adversary reaches a BANK_ADMIN principal with the scopes needed to freeze accounts, approve KYC, or reverse transactions, and uses those operator powers directly rather than attacking a customer path.",
+      "plain_summary": "Rather than attacking a customer, the attacker goes after a member of bank staff. Staff accounts can freeze accounts, approve identity checks and undo payments, so one of them is worth far more than one customer.",
+      "root_node_id": "attack:operator-root",
+      "nodes": [
+        {
+          "node_id": "attack:operator-root",
+          "kind": "GOAL",
+          "operator": "AND",
+          "title": "Exercise operator powers against customer accounts",
+          "plain_title": "Use staff powers for the attacker's benefit",
+          "description": "Reach an administrator principal and use a scope-protected route to change customer state in a way that benefits the attacker.",
+          "plain_description": "Get hold of a staff login, and then use one of the powers that login carries.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1078.002",
+              "name": "Domain Accounts",
+              "tactic": "Privilege Escalation"
+            }
+          ],
+          "flow_ids": [
+            "default:patch:/v1/admin/accounts/{account_id}/status"
+          ],
+          "graph_node_ids": [
+            "route:PATCH:/v1/admin/accounts/{account_id}/status",
+            "function:bantam.api.require_admin_scope"
+          ],
+          "existing_obstacles": [
+            "Administrator routes are gated per scope, so one compromised administrator does not automatically hold every operator power."
+          ]
+        },
+        {
+          "node_id": "attack:operator-access",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Reach an authenticated administrator principal",
+          "plain_title": "Get into a staff account",
+          "description": "Administrator sessions require multi-factor authentication, so an attacker needs either a completed factor or a session that already passed one.",
+          "plain_description": "Staff accounts need a second security factor, so a password on its own is not enough. There are a few ways round that.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1078",
+              "name": "Valid Accounts",
+              "tactic": "Initial Access"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/auth/login",
+            "default:post:/v1/auth/mfa/passkey"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.finish_mfa_session",
+            "function:bantam.mfa.MfaService.complete_totp"
+          ],
+          "existing_obstacles": [
+            "The database rechecks that the user is active and that the role claim is current on every request, so a stale or downgraded account stops working immediately."
+          ]
+        },
+        {
+          "node_id": "attack:operator-device",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Compromise an operator workstation and reuse the live session",
+          "plain_title": "Take over a laptop that is already signed in",
+          "description": "With code execution on the operator's machine, the existing authenticated session can be used without ever completing a factor.",
+          "plain_description": "If the attacker controls the computer a staff member is already using, they do not need to sign in at all — they just carry on from where that person is.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1539",
+              "name": "Steal Web Session Cookie",
+              "tactic": "Credential Access"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/auth/login"
+          ],
+          "graph_node_ids": [
+            "function:bantam.auth.AuthService.issue",
+            "function:bantam.api.finish_mfa_session"
+          ],
+          "existing_obstacles": [
+            "Session cookies are HttpOnly and state-changing requests need a matching CSRF nonce, so a stolen cookie alone is not enough from another site."
+          ]
+        },
+        {
+          "node_id": "attack:operator-enrol",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Enrol an attacker-controlled second factor",
+          "plain_title": "Add the attacker's own security key to a staff account",
+          "description": "Adding a factor to an existing administrator account converts one-off credential access into durable access.",
+          "plain_description": "Once inside, register a new phone or security key of their own, so they can get back in later even after the password is changed.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1556.006",
+              "name": "Multi-Factor Authentication",
+              "tactic": "Persistence"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/me/mfa/enrollment"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.begin_mfa_enrollment",
+            "function:bantam.api.require_recent_mfa"
+          ],
+          "existing_obstacles": [
+            "Enrolment requires the account password again and a recent successful factor, so it cannot be done from a stale session alone."
+          ]
+        },
+        {
+          "node_id": "attack:operator-power",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Use a scope-protected operator route",
+          "plain_title": "Use one of the powers that staff account has",
+          "description": "Each administrator power is a separate scope; the attacker uses whichever the compromised account actually holds.",
+          "plain_description": "Different staff have different powers. The attacker uses whichever one this particular account happens to have.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1565.001",
+              "name": "Stored Data Manipulation",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/admin/transactions/{transaction_id}/reverse",
+            "default:patch:/v1/admin/customers/{customer_id}/kyc"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.require_admin_scope",
+            "function:bantam.api.describe_admin_access"
+          ],
+          "existing_obstacles": [
+            "Every operator action writes an append-only audit event naming the actor, request and correlation id."
+          ]
+        },
+        {
+          "node_id": "attack:operator-reverse",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Reverse a legitimate transaction",
+          "plain_title": "Undo a payment that should have stood",
+          "description": "Reversal appends compensating ledger entries; abused, it moves value back to an account the attacker controls.",
+          "plain_description": "Cancel a real payment so the money goes back where the attacker wants it.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1565.001",
+              "name": "Stored Data Manipulation",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/admin/transactions/{transaction_id}/reverse"
+          ],
+          "graph_node_ids": [
+            "route:POST:/v1/admin/transactions/{transaction_id}/reverse",
+            "function:bantam.ledger.LedgerService._validate_reversal"
+          ],
+          "existing_obstacles": [
+            "Reversal is validated against the original transaction and appends entries rather than editing them, so the original posting remains visible."
+          ]
+        },
+        {
+          "node_id": "attack:operator-kyc",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Approve a mule account through KYC",
+          "plain_title": "Wave through a fake customer's identity check",
+          "description": "Approving identity verification for an attacker-controlled customer creates a destination account that looks legitimate.",
+          "plain_description": "Approve the identity check on an account the attacker set up, so it looks like a normal, verified customer to everyone else.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1136",
+              "name": "Create Account",
+              "tactic": "Persistence"
+            }
+          ],
+          "flow_ids": [
+            "default:patch:/v1/admin/customers/{customer_id}/kyc"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.admin_decide_kyc"
+          ],
+          "existing_obstacles": [
+            "The decision and its reason are recorded in the audit trail against the deciding administrator."
+          ]
+        },
+        {
+          "node_id": "attack:operator-freeze",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Freeze accounts to obstruct response",
+          "plain_title": "Lock customers out to slow the bank down",
+          "description": "Freezing accounts at scale converts privileged access into a customer-facing incident and consumes the response capacity that would otherwise investigate.",
+          "plain_description": "Lock lots of customers out of their accounts. It causes real harm, and it keeps the bank's staff busy dealing with complaints instead of the actual attack.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1531",
+              "name": "Account Access Removal",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:patch:/v1/admin/accounts/{account_id}/status"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.operator_set_account_status"
+          ],
+          "existing_obstacles": [
+            "Status changes require a reason and are individually audited, so the pattern is reconstructable after the fact."
+          ]
+        },
+        {
+          "node_id": "attack:operator-expand",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Expand into customer, transaction, and audit workflows",
+          "plain_title": "Spread out into the bank's records",
+          "description": "Operator sessions can read customer records, transaction history, and the audit trail; each widens the incident beyond the first abused power.",
+          "plain_description": "One staff login opens the door to a lot more than one action: customer details, everyone's payments, and the record of who did what.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1213",
+              "name": "Data from Information Repositories",
+              "tactic": "Collection"
+            }
+          ],
+          "flow_ids": [
+            "default:get:/v1/admin/customers",
+            "default:get:/v1/admin/transactions"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.admin_list_customers",
+            "function:bantam.api.operator_list_transactions"
+          ],
+          "existing_obstacles": [
+            "Each listing route is gated by its own administrator scope, so reading customers does not imply reading transactions."
+          ]
+        },
+        {
+          "node_id": "attack:operator-harvest",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Harvest customer and transaction records at scale",
+          "plain_title": "Copy out customer details and payment history",
+          "description": "Bounded listing routes still return enough per request to accumulate a substantial customer and payment dataset over a session.",
+          "plain_description": "Page through the customer and payment lists and save what comes back, until there is a useful copy of the bank's records.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1213",
+              "name": "Data from Information Repositories",
+              "tactic": "Collection"
+            },
+            {
+              "technique_id": "T1530",
+              "name": "Data from Cloud Storage",
+              "tactic": "Collection"
+            }
+          ],
+          "flow_ids": [
+            "default:get:/v1/admin/customers",
+            "default:get:/v1/admin/transactions"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.admin_list_customers"
+          ],
+          "existing_obstacles": [
+            "Every read is bounded by an explicit limit and recorded against the acting administrator."
+          ]
+        },
+        {
+          "node_id": "attack:operator-cover",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Dismiss risk alerts to slow investigation",
+          "plain_title": "Close down the alerts that would give it away",
+          "description": "An operator with the risk scope can mark alerts reviewed or dismissed, removing the queue entries that would otherwise start an investigation.",
+          "plain_description": "Mark the warnings as already looked at, so nobody else picks them up.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1562.008",
+              "name": "Disable or Modify Cloud Logs",
+              "tactic": "Defense Evasion"
+            }
+          ],
+          "flow_ids": [
+            "default:patch:/v1/risk/alerts/{alert_id}",
+            "default:get:/v1/audit/events"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.review_risk_alert",
+            "function:bantam.api.list_audit_events"
+          ],
+          "existing_obstacles": [
+            "Audit events are append-only and a dismissal is itself audited, so the act of closing an alert is visible."
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "attack:operator-root",
+          "attack:operator-access"
+        ],
+        [
+          "attack:operator-root",
+          "attack:operator-power"
+        ],
+        [
+          "attack:operator-access",
+          "attack:operator-device"
+        ],
+        [
+          "attack:operator-access",
+          "attack:operator-enrol"
+        ],
+        [
+          "attack:operator-power",
+          "attack:operator-reverse"
+        ],
+        [
+          "attack:operator-power",
+          "attack:operator-kyc"
+        ],
+        [
+          "attack:operator-power",
+          "attack:operator-freeze"
+        ],
+        [
+          "attack:operator-root",
+          "attack:operator-expand"
+        ],
+        [
+          "attack:operator-expand",
+          "attack:operator-harvest"
+        ],
+        [
+          "attack:operator-expand",
+          "attack:operator-cover"
+        ]
+      ],
+      "assumptions": [
+        "At least one administrator account holds a scope that is useful to the attacker.",
+        "Operator workstation compromise is possible through means outside Bantam."
+      ],
+      "limitations": [
+        "The graph shows which routes are scope-protected, not whether any real administrator is over-privileged.",
+        "No claim is made that Bantam's MFA implementation is bypassable."
+      ],
+      "scenario_id": "identity-access"
+    },
+    {
+      "tree_id": "tree:payment-outage",
+      "name": "Loss of the ability to make payments",
+      "plain_name": "Customers cannot pay anyone",
+      "business_service": "Continuous availability of the payment service",
+      "summary": "Rather than moving value, the adversary removes the bank's ability to move it and to prove its own state: degrade a dependency of the payment path, leave event and ledger state uncertain, and keep the workers and controls that would confirm recovery from running.",
+      "plain_summary": "Some attacks are not about stealing money at all. They are about stopping the bank working, leaving it unsure what actually happened, and keeping the checks that would settle the question offline. That does real damage without a penny moving.",
+      "root_node_id": "attack:outage-root",
+      "nodes": [
+        {
+          "node_id": "attack:outage-root",
+          "kind": "GOAL",
+          "operator": "AND",
+          "title": "Keep an important service unavailable or inconsistent past tolerance",
+          "plain_title": "Stop the bank working, and keep it unsure what happened",
+          "description": "Degrade a dependency the payment path needs, leave event or ledger state uncertain, and delay the signals that would confirm recovery.",
+          "plain_description": "All three parts matter: break something, leave the records in doubt, and keep the checks quiet.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1499",
+              "name": "Endpoint Denial of Service",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/transfers"
+          ],
+          "graph_node_ids": [
+            "route:POST:/v1/transfers",
+            "function:bantam.api.create_transfer"
+          ],
+          "existing_obstacles": [
+            "Payment posting is a single database transaction, so a failure aborts cleanly rather than leaving half a payment behind."
+          ]
+        },
+        {
+          "node_id": "attack:outage-degrade",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Degrade the API, database, or message bus",
+          "plain_title": "Break something the payment path needs",
+          "description": "Any one of several dependency failures makes the transfer path unavailable for long enough to breach the impact tolerance.",
+          "plain_description": "There are several separate ways to break this, and only one of them has to work.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1499",
+              "name": "Endpoint Denial of Service",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/transfers",
+            "default:get:/healthz"
+          ],
+          "graph_node_ids": [
+            "route:POST:/v1/transfers",
+            "function:bantam.api.health"
+          ],
+          "existing_obstacles": [
+            "Payment posting is a single database transaction, so a failure aborts cleanly rather than leaving half a payment behind."
+          ]
+        },
+        {
+          "node_id": "attack:outage-flood",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Flood expensive read paths with authenticated requests",
+          "plain_title": "Hammer the slowest pages with real logins",
+          "description": "Authenticated listing routes read wide ranges and are reachable by any customer session, so a modest number of accounts can hold many connections.",
+          "plain_description": "Sign in with a handful of accounts and repeatedly request the heaviest pages, over and over, so the system spends all its time on those.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1499.002",
+              "name": "Service Exhaustion Flood",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:get:/v1/accounts/{account_id}/transactions"
+          ],
+          "graph_node_ids": [
+            "function:bantam.api.list_account_transactions"
+          ],
+          "existing_obstacles": [
+            "Listing routes are bounded by an explicit limit rather than returning unbounded history."
+          ]
+        },
+        {
+          "node_id": "attack:outage-lock",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Contend on the deterministic account locks",
+          "plain_title": "Make payments queue behind each other",
+          "description": "Transfers lock accounts in a deterministic order; concentrating traffic on one account serialises work behind that lock.",
+          "plain_description": "Payments touching the same account have to take turns. Aim enough traffic at one account and everything behind it slows to a crawl.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1499.004",
+              "name": "Application or System Exploitation",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/transfers"
+          ],
+          "graph_node_ids": [
+            "function:bantam.ledger.LedgerService._lock_accounts"
+          ],
+          "existing_obstacles": [
+            "Deterministic lock ordering prevents deadlock, so contention degrades throughput rather than wedging the service."
+          ]
+        },
+        {
+          "node_id": "attack:outage-host",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Take the single host or its database offline",
+          "plain_title": "Knock over the one machine everything runs on",
+          "description": "The evaluation deployment is a single host; losing it or its PostgreSQL volume removes the service until a restore completes.",
+          "plain_description": "This demo runs on one server. If that server dies, everything stops until someone restores it from a backup.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1485",
+              "name": "Data Destruction",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/reconciliation/runs"
+          ],
+          "graph_node_ids": [
+            "function:bantam.ledger.LedgerService.reconcile"
+          ],
+          "existing_obstacles": [
+            "Backups run on a timer and reconciliation can prove after a restore that projected balances match the ledger."
+          ]
+        },
+        {
+          "node_id": "attack:outage-uncertain",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Create event replay or state uncertainty",
+          "plain_title": "Leave the bank unsure what actually happened",
+          "description": "An outage is recoverable; an outage where nobody can say which events were published or which state is authoritative is far more expensive.",
+          "plain_description": "Being down for an hour is one thing. Not knowing afterwards which payments went through is much worse and takes far longer to sort out.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1565.001",
+              "name": "Stored Data Manipulation",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:system:async-outbox-publish"
+          ],
+          "graph_node_ids": [
+            "function:bantam.events.OutboxPublisher.publish_batch"
+          ],
+          "existing_obstacles": [
+            "Events are written in the same transaction as the payment, so a bus outage delays delivery without losing the payment or the event."
+          ]
+        },
+        {
+          "node_id": "attack:outage-stall",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Stall the transactional outbox so events are neither published nor discarded",
+          "plain_title": "Jam the queue that tells the rest of the bank what happened",
+          "description": "Unpublished outbox rows accumulate while consumers see nothing, so downstream state diverges from the ledger until the backlog drains.",
+          "plain_description": "Payments still get recorded, but the messages announcing them pile up undelivered, so every other part of the bank has an out-of-date picture.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1489",
+              "name": "Service Stop",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:system:async-outbox-publish"
+          ],
+          "graph_node_ids": [
+            "function:bantam.events.OutboxPublisher.publish_batch",
+            "function:bantam.events.EventPublisher.publish"
+          ],
+          "existing_obstacles": [
+            "Outbox rows stay unpublished rather than being dropped, and expired claims are recovered, so a stall delays delivery instead of losing events."
+          ]
+        },
+        {
+          "node_id": "attack:outage-supply",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Compromise a build or runtime dependency",
+          "plain_title": "Poison a piece of software the bank installs",
+          "description": "A malicious update to a declared dependency runs with the service's privileges the next time an image is built and deployed.",
+          "plain_description": "The bank builds its software out of parts written by other people. If one of those parts is tampered with, the bad code arrives through a normal update.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1195.001",
+              "name": "Compromise Software Dependencies and Development Tools",
+              "tactic": "Initial Access"
+            }
+          ],
+          "flow_ids": [
+            "default:system:async-outbox-publish"
+          ],
+          "graph_node_ids": [
+            "function:bantam.events.EventPublisher.publish"
+          ],
+          "existing_obstacles": [
+            "Runtime dependencies are pinned exactly and the published CycloneDX inventory records what shipped, so a changed component is detectable after the fact."
+          ]
+        },
+        {
+          "node_id": "attack:outage-blind",
+          "kind": "SUBGOAL",
+          "operator": "OR",
+          "title": "Delay the signals that would confirm recovery",
+          "plain_title": "Keep the checks that would settle it offline",
+          "description": "Notification and risk workers and the reconciliation control are what turn a suspected incident into a bounded, evidenced one; without them the tolerance clock keeps running.",
+          "plain_description": "The bank has ways to prove it is healthy again. Keep those quiet and the incident stays open far longer than it needs to.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1562",
+              "name": "Impair Defenses",
+              "tactic": "Defense Evasion"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/reconciliation/runs",
+            "default:system:async-risk-worker"
+          ],
+          "graph_node_ids": [
+            "function:bantam.ledger.LedgerService.reconcile"
+          ],
+          "existing_obstacles": [
+            "Reconciliation compares projected balances against the authoritative ledger, so once it runs it settles the question definitively."
+          ]
+        },
+        {
+          "node_id": "attack:outage-workers",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Starve the notification and risk workers",
+          "plain_title": "Stop the alerts and customer messages going out",
+          "description": "Both workers consume the same bus; keeping them behind a backlog suppresses customer notification and the risk queue at once.",
+          "plain_description": "The same jam stops customers being told what is happening and stops staff seeing the warning list.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1489",
+              "name": "Service Stop",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:system:async-notification-worker",
+            "default:system:async-risk-worker",
+            "default:get:/v1/notifications"
+          ],
+          "graph_node_ids": [
+            "function:bantam.workers.create_notifications",
+            "function:bantam.workers.create_risk_alert"
+          ],
+          "existing_obstacles": [
+            "Work is queued rather than dropped, so notifications and alerts are delayed rather than lost."
+          ]
+        },
+        {
+          "node_id": "attack:outage-reconcile",
+          "kind": "ACTION",
+          "operator": "LEAF",
+          "title": "Keep reconciliation from running or being read",
+          "plain_title": "Stop the balance check that would prove things are fine",
+          "description": "Reconciliation is the control that proves projected balances still match the ledger; while it cannot run, state uncertainty cannot be closed out.",
+          "plain_description": "Until someone runs the check that compares the balances against the record of every payment, nobody can honestly say the books are right.",
+          "mitre_techniques": [
+            {
+              "technique_id": "T1489",
+              "name": "Service Stop",
+              "tactic": "Impact"
+            }
+          ],
+          "flow_ids": [
+            "default:post:/v1/reconciliation/runs"
+          ],
+          "graph_node_ids": [
+            "route:POST:/v1/reconciliation/runs",
+            "function:bantam.api.run_reconciliation"
+          ],
+          "existing_obstacles": [
+            "Reconciliation is an on-demand control, so a single successful run after recovery restores certainty."
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "attack:outage-root",
+          "attack:outage-degrade"
+        ],
+        [
+          "attack:outage-root",
+          "attack:outage-uncertain"
+        ],
+        [
+          "attack:outage-root",
+          "attack:outage-blind"
+        ],
+        [
+          "attack:outage-degrade",
+          "attack:outage-flood"
+        ],
+        [
+          "attack:outage-degrade",
+          "attack:outage-lock"
+        ],
+        [
+          "attack:outage-degrade",
+          "attack:outage-host"
+        ],
+        [
+          "attack:outage-uncertain",
+          "attack:outage-stall"
+        ],
+        [
+          "attack:outage-uncertain",
+          "attack:outage-supply"
+        ],
+        [
+          "attack:outage-blind",
+          "attack:outage-workers"
+        ],
+        [
+          "attack:outage-blind",
+          "attack:outage-reconcile"
+        ]
+      ],
+      "assumptions": [
+        "The evaluation topology is the single-host Compose bundle described in the deployment runbook.",
+        "Impact tolerance is breached by hours of unavailability rather than by any single failed payment.",
+        "Event replay and state uncertainty extend an incident well beyond the outage itself."
+      ],
+      "limitations": [
+        "Connection-pool and lock behaviour under load has not been measured here; the graph shows the structures, not their capacity.",
+        "No dependency in this repository is known or claimed to be compromised."
+      ],
+      "scenario_id": "service-availability"
+    }
+  ]
+}

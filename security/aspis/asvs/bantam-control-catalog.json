@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "catalog": "OWASP Application Security Verification Standard",
+  "catalog_version": "5.0.0",
+  "controls": [
+    {
+      "control_id": "ASPIS-ASVS-AC-001",
+      "title": "Protected API rejects anonymous requests",
+      "framework_ids": [
+        "v5.0.0-8.2.1",
+        "v5.0.0-7.2.1"
+      ],
+      "pytest_node_id": "tests/integration/test_authorization.py::test_protected_route_rejects_anonymous_request",
+      "severity": "high",
+      "remediation": "Require a server-validated session before protected route logic runs."
+    },
+    {
+      "control_id": "ASPIS-ASVS-AC-002",
+      "title": "Customer cannot invoke bank-administrator functions",
+      "framework_ids": [
+        "v5.0.0-8.2.1",
+        "v5.0.0-8.3.1"
+      ],
+      "pytest_node_id": "tests/integration/test_authorization.py::test_customer_cannot_use_admin_route",
+      "severity": "critical",
+      "remediation": "Enforce role authorization at the API service layer on every administrator route."
+    },
+    {
+      "control_id": "ASPIS-ASVS-AC-003",
+      "title": "Customer cannot read another customer's account history",
+      "framework_ids": [
+        "v5.0.0-8.2.2"
+      ],
+      "pytest_node_id": "tests/integration/test_authorization.py::test_customer_cannot_read_another_customers_account_history",
+      "severity": "critical",
+      "remediation": "Bind account reads to the authenticated customer in the database query."
+    },
+    {
+      "control_id": "ASPIS-ASVS-AC-004",
+      "title": "Customer cannot transfer from an unowned account",
+      "framework_ids": [
+        "v5.0.0-8.2.2",
+        "v5.0.0-8.3.1"
+      ],
+      "pytest_node_id": "tests/integration/test_authorization.py::test_customer_cannot_transfer_from_an_unowned_account",
+      "severity": "critical",
+      "remediation": "Check source-account ownership in the trusted transfer service before posting ledger entries."
+    },
+    {
+      "control_id": "ASPIS-ASVS-AC-005",
+      "title": "Logout prevents replay of the terminated session",
+      "framework_ids": [
+        "v5.0.0-7.4.1"
+      ],
+      "pytest_node_id": "tests/integration/test_authorization.py::test_logout_revokes_cookie_session_token",
+      "severity": "high",
+      "remediation": "Revoke the session token identifier on logout and enforce the revocation list on later requests."
+    }
+  ]
+}

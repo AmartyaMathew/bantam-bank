@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A plain-language cyber risk report for the synthetic Bantam bank, combining MITRE attack paths with FAIR-style cost assumptions.">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Bantam cyber risk in pounds</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to report</a>
+
+  <header class="hero">
+    <nav class="topbar" aria-label="Report sections">
+      <a class="brand" href="#top" aria-label="Bantam resilience report home">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span>Bantam resilience</span>
+      </a>
+      <div class="nav-links">
+        <a href="#graph">Evidence graph</a>
+        <a href="#attack-trees">Attack trees</a>
+        <a href="#tree-explorer">Tree explorer</a>
+        <a href="#simulation">Risk lab</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#sources">Sources</a>
+      </div>
+    </nav>
+
+    <div class="hero-grid" id="top">
+      <div>
+        <p class="eyebrow">Operational resilience · evidence before estimates</p>
+        <h1>Bantam cyber risk in pounds</h1>
+        <div class="hero-copy">
+          <p>This website acts an interactive demo to combine the MITRE ATTACK framework(helps answer how can an attack happen), with the FAIR framework(helps answer what is the chance of an attack and how much will it cost it is successful?). It assume a financial profile for Bantam, and provides three risk scenarios. Each scenario has estimated costs in case of a successful attack and costs to prevent said attack.</p>
+          <p>The idea is to attach financials to cybersecurity to help make more informed decisions and to help present cybersecurity beyond a cost center.</p>
+          <p>The Monte Carlo risk lab appears below the attack-tree explorer. It shows a range of possible losses for the scenarios mentioned. </p>
+        </div>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#attack-trees">Explore the scenarios</a>
+          <a class="button button-secondary" href="#graph">Trace the evidence</a>
+        </div>
+      </div>
+      <aside class="assurance-note" aria-label="Scope warning">
+        <p class="assurance-label"> Please note:</p>
+        <p>Bantam is a demo bank only. The financial records given are just assumptions so calculations can happen.</p>
+      </aside>
+    </div>
+
+    <dl class="snapshot-strip" aria-label="Current graph snapshot">
+      <div><dt>Graph nodes</dt><dd id="metric-nodes">—</dd></div>
+      <div><dt>Extracted edges</dt><dd id="metric-edges">—</dd></div>
+      <div><dt>Human flows</dt><dd id="metric-flows">—</dd></div>
+      <div><dt>Graph digest</dt><dd id="metric-digest" class="mono">—</dd></div>
+    </dl>
+  </header>
+
+  <noscript>
+    <p class="fatal-error">JavaScript is required for the graph explorer and local simulation. The narrative remains readable, but no risk result has been calculated.</p>
+  </noscript>
+  <p id="load-error" class="fatal-error" hidden></p>
+
+  <main id="main-content">
+    <section class="section section-intro" aria-labelledby="executive-title">
+      <div class="section-heading">
+        <p class="eyebrow">Executive summary</p>
+        <h2 id="executive-title">A quantified scenario with evidence.</h2>
+      </div>
+      <div class="prose-grid">
+        <div class="lead-copy">
+          <div class="reader-story">
+            <h3>The plain-English version</h3>
+            <p>Bantam is a small modelled digital bank. It someone is able to exploit a code vulnerability and get in then what is the effects. What is the cost of those effects? And finally what is the chance of that happening?</p>
+          </div>
+        </div>
+        <div class="finding-list" aria-label="Illustrative findings">
+          <div>
+            <span>Analytic baseline EAL</span>
+            <strong id="headline-eal">—</strong>
+            <small>before sampled severity variation</small>
+          </div>
+          <div>
+            <span>Chance above tolerance</span>
+            <strong id="headline-exceedance">—</strong>
+            <small id="headline-tolerance">at the current threshold</small>
+          </div>
+          <div>
+            <span>Two-year programme</span>
+            <strong>£400k</strong>
+            <small>illustrative control investment</small>
+          </div>
+        </div>
+      </div>
+      <dl class="business-profile" aria-label="Fictional Bantam operating profile">
+        <div><dt>Annual revenue</dt><dd id="business-revenue">—</dd></div>
+        <div><dt>Customer accounts</dt><dd id="business-customers">—</dd></div>
+        <div><dt>Payment volume</dt><dd id="business-volume">—</dd></div>
+        <div><dt>Transfers per year</dt><dd id="business-transfers">—</dd></div>
+      </dl>
+    </section>
+
+    <section class="section" aria-labelledby="method-title">
+      <div class="section-heading">
+        <p class="eyebrow">1 · Methodology</p>
+        <h2 id="method-title">Six layers, with a visible evidence boundary</h2>
+      </div>
+      <ol class="method-list">
+        <li>
+          <span class="method-number">01</span>
+          <div><h3>Important business service</h3><p>State how much loss a certain business critical function can take</p></div>
+        </li>
+        <li>
+          <span class="method-number">02</span>
+          <div><h3>MITRE threat scenario</h3><p>Describe potential adversay behaviour</p></div>
+        </li>
+        <li>
+          <span class="method-number">03</span>
+          <div><h3>Bantam knowledge graph</h3><p>Human readable graphs of the components behind Bantam's backend logic.</p></div>
+        </li>
+        <li>
+          <span class="method-number">04</span>
+          <div><h3>Attack-tree costing</h3><p>State the incident path over extracted Bantam flows. RTO is the time allowed to restore the service, so it drives the outage cost. RPO is the amount of data or state that may need to be rebuilt, so it drives the reconstruction cost. Add the response, remediation, and customer/regulatory costs to price the full path.</p></div>
+        </li>
+        <li>
+          <span class="method-number">05</span>
+          <div><h3>FAIR-informed assumptions</h3><p>Represent loss-event frequency and magnitude explicitly. The demonstration’s probabilities are hypotheses for review, not outputs of the graph.</p></div>
+        </li>
+        <li>
+          <span class="method-number">06</span>
+          <div><h3>Monte Carlo decision range</h3><p>Sample detection, dwell, and blast-radius uncertainty; compare the resulting annual loss distribution with the board’s tolerance and proposed control costs.</p></div>
+        </li>
+      </ol>
+
+    </section>
+
+    <section class="section graph-section" id="graph" aria-labelledby="graph-title">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">2 · Human knowledge graph</p>
+          <h2 id="graph-title">Follow risk from service intent to durable effect</h2>
+        </div>
+        <p class="section-note">
+          The public projection omits raw SQL and documentation bodies. Select a
+          stage to inspect its exact function symbol, guard, table operation, and
+          source location.
+        </p>
+      </div>
+
+      <div class="control-row" aria-label="Graph selection">
+        <label>
+          Risk scenario
+          <select id="graph-scenario"></select>
+        </label>
+        <label>
+          Human flow
+          <select id="graph-flow"></select>
+        </label>
+        <label>
+          Evidence stage
+          <select id="graph-stage"></select>
+        </label>
+      </div>
+
+      <div class="graph-meta">
+        <div>
+          <span>Actor</span>
+          <strong id="graph-actor">—</strong>
+        </div>
+        <div>
+          <span>Entry</span>
+          <strong id="graph-entry">—</strong>
+        </div>
+        <div>
+          <span>Evidence nodes</span>
+          <strong id="graph-node-count">—</strong>
+        </div>
+        <div>
+          <span>Documentation</span>
+          <strong id="graph-doc">—</strong>
+        </div>
+      </div>
+
+      <figure class="graph-figure">
+        <svg id="graph-pipeline" viewBox="0 0 1120 250" role="img" aria-labelledby="pipeline-title pipeline-description">
+          <title id="pipeline-title">Selected Bantam flow by evidence stage</title>
+          <desc id="pipeline-description">A left-to-right aggregate of route, function, check, transaction, data access, durable effect, and database constraint evidence.</desc>
+        </svg>
+        <figcaption>
+          Circle size represents the number of extracted nodes in each stage; it is
+          not a security score. Select a stage above or in the diagram to inspect
+          the underlying evidence.
+        </figcaption>
+      </figure>
+
+      <div class="table-wrap">
+        <table class="evidence-table">
+          <caption id="evidence-caption">Evidence for the selected stage</caption>
+          <thead>
+            <tr>
+              <th scope="col">Kind</th>
+              <th scope="col">Human label</th>
+              <th scope="col">Function / operation</th>
+              <th scope="col">Source</th>
+            </tr>
+          </thead>
+          <tbody id="graph-evidence-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+
+    <section class="section attack-tree-section" id="attack-trees" aria-labelledby="attack-tree-title">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">3 · Attack-tree cost basis</p>
+          <h2 id="attack-tree-title">Price the full incident path, not a loose headline number</h2>
+        </div>
+        <p class="section-note">
+          These trees are manually authored over Bantam’s deterministic code graph.
+          The linked flow IDs are validated by the build, but exploitability,
+          frequency, RTO, RPO, and costs remain assumptions for human review.
+          Select one tree to see the incident story, probability chain, cost source,
+          and code-backed flows.
+        </p>
+      </div>
+
+      <div class="attack-tree-controls">
+        <label>
+          Attack tree
+          <select id="attack-tree-select"></select>
+        </label>
+        <button id="use-attack-tree" class="button button-primary" type="button">
+          Run this tree in the lab
+        </button>
+      </div>
+      <div id="attack-tree-detail" class="attack-tree-detail"></div>
+    </section>
+
+
+    <section class="section tree-explorer-section" id="tree-explorer" aria-labelledby="tree-explorer-title">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">4 · Attack trees for this bank</p>
+          <h2 id="tree-explorer-title">Read each tree in plain English or MITRE ATT&amp;CK</h2>
+        </div>
+        <p class="section-note">
+          One tree per risk scenario, decomposed from an attacker goal down to
+          individual actions, with every step citing a route, service function, or
+          flow that exists in the published graph. Drag the steps around, switch
+          between the MITRE ATT&amp;CK view and the plain-English view, and read what
+          a year of the selected scenario costs.
+        </p>
+      </div>
+
+      <div class="tree-explorer-controls">
+        <label>
+          Attack tree
+          <select id="tree-select"></select>
+        </label>
+        <fieldset class="format-toggle">
+          <legend>How should each step be described?</legend>
+          <label>
+            <input type="radio" name="tree-format" value="plain" checked>
+            <span>Plain English</span>
+          </label>
+          <label>
+            <input type="radio" name="tree-format" value="mitre">
+            <span>MITRE ATT&amp;CK</span>
+          </label>
+        </fieldset>
+        <p class="tree-origin" id="tree-origin">—</p>
+      </div>
+
+      <article class="tree-summary" id="tree-summary"></article>
+
+      <div class="graph-shell">
+        <div class="graph-toolbar">
+          <div class="graph-buttons">
+            <button type="button" id="graph-zoom-out" aria-label="Zoom out">&minus;</button>
+            <button type="button" id="graph-zoom-in" aria-label="Zoom in">+</button>
+            <button type="button" id="graph-fit">Fit</button>
+            <button type="button" id="graph-reset">Reset layout</button>
+          </div>
+          <p class="graph-hint">
+            Drag any step to move it, drag the background to pan, scroll to zoom.
+            Select a step to read it in full.
+          </p>
+        </div>
+        <div class="graph-stage">
+          <svg id="tree-graph" role="application"
+               aria-labelledby="tree-graph-title tree-graph-description">
+            <title id="tree-graph-title">Attack tree graph</title>
+            <desc id="tree-graph-description">
+              The attacker goal at the top, decomposed downwards into the steps it
+              needs. Each step is focusable; press Enter to read it and use the
+              arrow keys to move it.
+            </desc>
+            <g id="tree-viewport">
+              <g id="tree-edges"></g>
+              <g id="tree-nodes"></g>
+            </g>
+          </svg>
+          <aside class="graph-detail" id="tree-detail" aria-live="polite"></aside>
+        </div>
+      </div>
+
+      <div class="tree-notes" id="tree-notes"></div>
+
+      <section class="mini-lab" id="mini-lab" aria-labelledby="mini-lab-title">
+        <div class="mini-lab-heading">
+          <div>
+            <p class="eyebrow">What this tree would cost</p>
+            <h3 id="mini-lab-title">A year of this scenario, simulated</h3>
+          </div>
+          <p id="mini-lab-note">
+            Three assumptions, ten thousand simulated years, in this browser.
+            Switch on the selected tree's countermeasure to see how probability,
+            annual loss, and prevention spend move together.
+          </p>
+        </div>
+
+        <details class="mini-explainer" open>
+          <summary>What the simulation is actually doing</summary>
+          <ol>
+            <li>
+              <strong>One year, played out ten thousand times.</strong> Nobody knows
+              whether this attack will happen next year. So the page pretends the
+              year happens ten thousand times over, and each pretend year rolls a
+              couple of dice to decide what took place.
+            </li>
+            <li>
+              <strong>The three sliders set the odds on those dice.</strong> How
+              likely is a full traversal in a given year? How much does one cost
+              when it lands? How much can the bank absorb before it counts as a
+              breach? Move a slider and the simulation reruns with new odds.
+            </li>
+            <li>
+              <strong>The results describe those ten thousand years.</strong> The
+              expected annual loss is the average bill across all of them, most of
+              which cost nothing. The worst year in a hundred is the top 1% —
+              anything above that is rarer than a one-in-a-hundred year. The
+              exceedance figure is how often the bill went over what the bank said
+              it could absorb.
+            </li>
+            <li>
+              <strong>This is arithmetic, not a prediction.</strong> The numbers
+              are what the assumptions imply, not a forecast of what the bank will
+              lose. Change an assumption and the arithmetic changes with it, which
+              is the whole point.
+            </li>
+          </ol>
+        </details>
+
+        <div class="mini-controls">
+          <label>
+            <span>Chance a full traversal happens in a year</span>
+            <input id="mini-probability" type="range" min="0.5" max="40" step="0.5">
+            <output id="mini-probability-value">—</output>
+          </label>
+          <label>
+            <span>What one full traversal costs</span>
+            <input id="mini-loss" type="range" min="250000" max="12000000" step="50000">
+            <output id="mini-loss-value">—</output>
+          </label>
+          <label>
+            <span>What the bank can absorb in a year</span>
+            <input id="mini-tolerance" type="range" min="200000" max="8000000" step="100000">
+            <output id="mini-tolerance-value">—</output>
+          </label>
+          <label class="mini-countermeasure-toggle" for="mini-countermeasure">
+            <input id="mini-countermeasure" type="checkbox">
+            <span class="mini-toggle-track" aria-hidden="true"></span>
+            <span class="mini-toggle-copy">
+              <strong id="mini-countermeasure-title">Use robust countermeasure</strong>
+              <small id="mini-countermeasure-summary">Applies this tree's recommended prevention package.</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="mini-results">
+          <div><span>Expected annual loss</span><strong id="mini-mean">—</strong><small>averaged over every year, including the many that cost nothing</small></div>
+          <div><span>The worst year in 100</span><strong id="mini-p99">—</strong><small>losses stay below this in 99 years out of 100</small></div>
+          <div id="mini-exceed-card"><span>Years over what we can absorb</span><strong id="mini-exceed">—</strong><small id="mini-exceed-note">—</small></div>
+        </div>
+
+        <div class="mini-countermeasure-panel" id="mini-countermeasure-panel" hidden>
+          <div class="mini-probability-shift" aria-label="Traversal probability before and after countermeasure">
+            <div>
+              <span>Without countermeasure</span>
+              <strong id="mini-probability-before">—</strong>
+              <small>annual full-path chance</small>
+            </div>
+            <div>
+              <span>With robust countermeasure</span>
+              <strong id="mini-probability-after">—</strong>
+              <small id="mini-probability-change">—</small>
+            </div>
+          </div>
+
+          <div class="mini-countermeasure-copy">
+            <p class="eyebrow">Why the probability changes</p>
+            <ul id="mini-countermeasure-reasons"></ul>
+          </div>
+
+          <div class="mini-prevention-bill">
+            <div class="mini-bill-heading">
+              <div>
+                <p class="eyebrow">First-year prevention bill</p>
+                <h4 id="mini-prevention-title">—</h4>
+              </div>
+              <strong id="mini-prevention-total">—</strong>
+            </div>
+            <div class="mini-bill-table" id="mini-prevention-bill"></div>
+          </div>
+        </div>
+
+        <p class="mini-sentence" id="mini-sentence">—</p>
+        <div class="mini-strip" id="mini-strip" aria-hidden="true"></div>
+        <p class="mini-strip-caption" id="mini-strip-caption">—</p>
+
+        <div class="mini-cost">
+          <p class="eyebrow">Where the traversal cost comes from</p>
+          <dl id="mini-cost-rows"></dl>
+          <button type="button" class="button button-primary" id="mini-open-full">
+            Open the full risk lab
+          </button>
+        </div>
+      </section>
+
+    </section>
+
+    <section class="section simulation-section" id="simulation" aria-labelledby="simulation-title">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">5 · Monte Carlo risk lab</p>
+          <h2 id="simulation-title">Change the assumptions, then rerun the year</h2>
+        </div>
+        <p class="section-note">
+          Same simulation as the mini lab above, with every input exposed. Each
+          scenario row has its own prevention switch, so a reader can test payment,
+          identity, or availability controls beside the assumptions they change.
+          Nothing leaves the page: no values, graph data, or API keys are sent, and
+          the lab never calls a model. A fixed seed makes the same inputs
+          reproducible.
+        </p>
+      </div>
+
+      <div class="model-controls" aria-label="Portfolio assumptions">
+        <label>
+          Run scope
+          <select id="simulation-scope"></select>
+        </label>
+        <label>
+          Simulated years
+          <input id="iterations-input" type="number" min="1000" max="100000" step="1000">
+        </label>
+        <label>
+          Random seed
+          <input id="seed-input" type="number" min="0" max="4294967295" step="1">
+        </label>
+        <label>
+          Impact tolerance (£)
+          <input id="tolerance-input" type="number" min="10000" max="100000000" step="10000">
+        </label>
+      </div>
+
+      <div class="model-explainers" aria-label="Plain-English model definitions">
+        <article>
+          <h3>Annual trigger</h3>
+          <p>
+            The chance that the whole attack tree is successfully traversed at least
+            once in a year. It is a business/threat assumption, not a count of bugs.
+          </p>
+        </article>
+        <article>
+          <h3>Loss if triggered</h3>
+          <p>
+            The chance that a successful traversal becomes a material incident after
+            detection, containment, recovery, and customer impact are considered.
+          </p>
+        </article>
+        <article>
+          <h3>Attack-tree cost</h3>
+          <p>
+            The estimated bad-day bill: RTO outage cost plus RPO reconstruction cost
+            plus response/remediation and customer/regulatory work.
+          </p>
+        </article>
+      </div>
+
+      <div class="table-wrap assumption-wrap">
+        <table class="assumption-table">
+          <caption>Scenario assumptions—turn on a row countermeasure to compare the same attack path before and after prevention</caption>
+          <thead>
+            <tr>
+              <th scope="col">Scenario</th>
+              <th scope="col">Annual trigger</th>
+              <th scope="col">Loss if triggered</th>
+              <th scope="col">Attack-tree cost (£)</th>
+              <th scope="col">Countermeasure</th>
+              <th scope="col">Graph scope</th>
+            </tr>
+          </thead>
+          <tbody id="scenario-inputs"></tbody>
+        </table>
+      </div>
+
+      <div class="run-row">
+        <button id="run-simulation" class="button button-primary" type="button">Run 10,000 simulated years</button>
+        <p id="simulation-status" role="status" aria-live="polite">Waiting for graph and model data.</p>
+      </div>
+
+      <div class="result-grid" aria-label="Simulation results">
+        <div><span>Mean annual loss</span><strong id="result-mean">—</strong><small>Monte Carlo mean</small></div>
+        <div><span>95th percentile</span><strong id="result-p95">—</strong><small>loss not exceeded in 95% of years</small></div>
+        <div><span>Above tolerance</span><strong id="result-exceedance">—</strong><small id="result-threshold">—</small></div>
+        <div><span>Payback</span><strong id="result-payback">—</strong><small>selected prevention cost ÷ annual reduction</small></div>
+      </div>
+
+      <div class="simulation-story" id="simulation-story" aria-live="polite">
+        <div>
+          <p class="eyebrow">What changed</p>
+          <h3 id="simulation-story-title">Run the lab to compare loss before and after countermeasures</h3>
+          <p id="simulation-story-copy">
+            Toggle countermeasures in the scenario rows, then run the simulated years.
+          </p>
+        </div>
+        <div class="comparison-bars" id="comparison-bars" aria-label="Baseline and adjusted annual loss comparison">
+          <div class="comparison-row">
+            <span>Without row countermeasures</span>
+            <div class="bar-track"><span id="baseline-bar"></span></div>
+            <strong id="baseline-bar-value">—</strong>
+          </div>
+          <div class="comparison-row">
+            <span>With selected countermeasures</span>
+            <div class="bar-track"><span id="adjusted-bar"></span></div>
+            <strong id="adjusted-bar-value">—</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="result-table">
+          <caption>Scenario contribution and row countermeasure effect</caption>
+          <thead>
+            <tr>
+              <th scope="col">Scenario</th>
+              <th scope="col">Graph-linked flows</th>
+              <th scope="col">Baseline EAL</th>
+              <th scope="col">Adjusted EAL</th>
+              <th scope="col">Reduction</th>
+            </tr>
+          </thead>
+          <tbody id="scenario-results"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="investment-title">
+      <div class="section-heading">
+        <p class="eyebrow">6 · Countermeasures and ROI</p>
+        <h2 id="investment-title">Combine the countermeasures from all three attack trees</h2>
+      </div>
+      <div class="table-wrap">
+        <table class="investment-table">
+          <caption>Combined countermeasures from all attack trees. A shared countermeasure is listed and costed once.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Countermeasure</th>
+              <th scope="col">Phase</th>
+              <th scope="col">Y1 cost</th>
+              <th scope="col">Modelled effect</th>
+            </tr>
+          </thead>
+          <tbody id="investment-body"></tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="2">Combined first-year total</th>
+              <td id="investment-total">—</td>
+              <td>Use the lab to test the modelled reduction.</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="clarification">
+        <strong>Terminology:</strong> the dependency control uses software
+        composition analysis. Bantam also contains <code>SCAService</code>, where SCA
+        means strong customer authentication. The report uses “dependency assurance”
+        to avoid conflating the two.
+      </p>
+    </section>
+
+    <section class="section tone-section" id="roadmap" aria-labelledby="roadmap-title">
+      <div class="section-heading">
+        <p class="eyebrow">7 · Phased implementation roadmap</p>
+        <h2 id="roadmap-title">Move from demonstrator to decision-grade evidence</h2>
+      </div>
+      <div class="roadmap">
+        <article>
+          <span>Months 1–2</span>
+          <h3>Define and calibrate</h3>
+          <p>Nominate important business services, owners and impact tolerances. Replace all three scenario probabilities and loss values with ranges supported by incident, threat and finance evidence.</p>
+        </article>
+        <article>
+          <span>Months 2–4</span>
+          <h3>Close evidence gaps</h3>
+          <p>Generate signed CycloneDX/SPDX artifacts, ingest vulnerability age and exploitability, map Docker/host dependencies, and link Mistral attack-tree citations to the same immutable graph digest.</p>
+        </article>
+        <article>
+          <span>Months 4–8</span>
+          <h3>Prevent and detect</h3>
+          <p>Harden privileged identity, dependency builds and release provenance. Centralize authentication, ledger, outbox and infrastructure signals with measurable detection and decision times.</p>
+        </article>
+        <article>
+          <span>Months 8–12</span>
+          <h3>Prove recovery</h3>
+          <p>Exercise database restore, NATS failure, worker stalls, certificate rotation, compromised image rollback and Droplet loss. Record whether each service remained within tolerance.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="appendix-title">
+      <div class="section-heading">
+        <p class="eyebrow">8 · Technical appendix</p>
+        <h2 id="appendix-title">How the simulation and rebuild work</h2>
+      </div>
+      <div class="appendix-grid">
+        <article>
+          <h3>Analytic baseline</h3>
+          <p><code>EAL = P(scenario trigger) × P(loss | trigger) × attack-tree traversal cost</code></p>
+          <p>The traversal cost is derived from explicit RTO/RPO and remediation assumptions. The three defaults produce £168k, £218.4k and £142.5k respectively: £528.9k before sampled severity factors.</p>
+        </article>
+        <article>
+          <h3>Sampled severity</h3>
+          <p>Detection is truncated normal, dwell is Weibull and blast radius is Beta. Each factor is normalized around its expected value and bounded, preventing a numerical tail from silently dominating the portfolio.</p>
+        </article>
+        <article>
+          <h3>Automatic graph rebuild</h3>
+          <p>HTML cannot parse a private repository by itself. A GitHub Actions workflow runs on every <code>main</code> push, verifies Bantam’s deterministic catalogue, builds a reduced public projection, and deploys the static artifact to Pages.</p>
+        </article>
+        <article>
+          <h3>Publication boundary</h3>
+          <p>The Pages artifact exposes graph identifiers, symbols, conditions and table-level effects. It excludes raw SQL, documentation bodies, credentials and runtime records, and contains no API key of any kind.</p>
+        </article>
+      </div>
+      <dl class="build-proof">
+        <div><dt>Source commit</dt><dd id="build-commit" class="mono">—</dd></div>
+        <div><dt>Projection digest</dt><dd id="projection-digest" class="mono">—</dd></div>
+        <div><dt>Risk model digest</dt><dd id="model-digest" class="mono">—</dd></div>
+      </dl>
+    </section>
+
+    <section class="section sources-section" id="sources" aria-labelledby="sources-title">
+      <div class="section-heading">
+        <p class="eyebrow">Sources and interpretation</p>
+        <h2 id="sources-title">Primary references used by this brief</h2>
+      </div>
+      <ul id="source-list" class="source-list"></ul>
+      <p class="source-caveat">
+        Regulatory applicability depends on the firm, permissions, group structure,
+        services and jurisdiction. This demonstrator is not legal, regulatory,
+        actuarial or investment advice.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Bantam operational resilience report · synthetic evidence and editable assumptions</p>
+    <p id="footer-build">Awaiting build metadata</p>
+  </footer>
+</body>
+</html>
