@@ -1,0 +1,893 @@
+{
+  "version": 1,
+  "title": "Bantam illustrative operational-resilience portfolio",
+  "currency": "GBP",
+  "iterations": 10000,
+  "seed": 580023,
+  "impact_tolerance_gbp": 1200000,
+  "assumption_note": "Bantam is a synthetic bank. This report tells a concrete but fictional operating story so non-security readers can follow the model: if Bantam is hacked or disrupted through one of these code-backed paths, the bank may lose money through outage time, reconstructed data, investigation, remediation, customer support, and regulatory/legal work. The code graph supplies the routes, functions, checks, database effects, and worker paths. Humans still own the assumptions: customer count, transaction volume, incident probability, RTO, RPO, response cost, and customer/regulatory cost.",
+  "method": {
+    "name": "FAIR-informed Monte Carlo demonstration",
+    "qualification": "This is not a certified FAIR analysis. The knowledge graph establishes technical scope and evidence; it does not infer event frequency, control effectiveness, or financial loss.",
+    "loss_model": "For each simulated year, the selected attack tree or full portfolio is sampled. A tree can only create loss after its annual traversal probability succeeds and the conditional loss probability succeeds. If loss occurs, base loss is scaled by sampled detection-time, dwell-time, and blast-radius severity. Selected controls reduce frequency or magnitude multiplicatively.",
+    "distributions": {
+      "detection_time": "Truncated normal",
+      "dwell_time": "Weibull",
+      "blast_radius": "Beta"
+    },
+    "attack_tree_probability": "Default annual trigger probability is explained as a path assumption, such as external exposure multiplied by successful access, successful sensitive action, and missed containment. The model keeps that result editable because the code graph cannot prove threat frequency or control failure rates."
+  },
+  "scenarios": [
+    {
+      "id": "payment-integrity",
+      "name": "Payment and ledger integrity",
+      "business_service": "Move synthetic GBP and preserve balanced, attributable ledger state",
+      "narrative": "An attacker reaches a payment path. They make an unauthorized transfer, duplicate a payment, or reverse one incorrectly. Review and reconciliation do not stop it in time.",
+      "mitre": [
+        {
+          "id": "T1565.001",
+          "name": "Stored Data Manipulation",
+          "url": "https://attack.mitre.org/techniques/T1565/001/"
+        },
+        {
+          "id": "T1078",
+          "name": "Valid Accounts",
+          "url": "https://attack.mitre.org/techniques/T1078/"
+        }
+      ],
+      "flow_ids": [
+        "default:post:/v1/transfers",
+        "default:post:/v1/sca/challenges",
+        "default:get:/v1/transfers/{transaction_id}",
+        "default:post:/v1/admin/transactions/{transaction_id}/reverse",
+        "default:post:/v1/reconciliation/runs",
+        "default:system:async-outbox-publish",
+        "default:system:async-risk-worker"
+      ],
+      "assumptions": {
+        "annual_event_probability": 0.06,
+        "conditional_loss_probability": 0.8,
+        "base_loss_gbp": 3500000,
+        "detection_mean_hours": 24,
+        "detection_sd_hours": 12,
+        "dwell_shape": 2,
+        "dwell_scale_hours": 54.162,
+        "blast_alpha": 2,
+        "blast_beta": 5
+      },
+      "incident": "Money moves incorrectly. The ledger records it. Review or reconciliation does not contain it in time.",
+      "why_these_numbers": "The £3.5m estimate covers a full payment incident. Payment operations are restricted for 24 hours. The model allows 60 minutes of ledger state to be checked or rebuilt. Teams investigate transactions, fix the system, support customers, and handle legal or regulatory work.",
+      "cost_basis": {
+        "rto_hours": 24,
+        "rpo_minutes": 60,
+        "outage_cost_per_hour_gbp": 60000,
+        "data_reconstruction_cost_per_hour_gbp": 400000,
+        "response_and_remediation_cost_gbp": 1100000,
+        "customer_or_regulatory_cost_gbp": 560000,
+        "calculated_base_loss_gbp": 3500000,
+        "line_items": [
+          {
+            "label": "RTO outage",
+            "amount_gbp": 1440000,
+            "source": "24 hours x £60k/hour",
+            "rationale": "Bantam slows or stops payment operations while it contains the attack."
+          },
+          {
+            "label": "RPO reconstruction",
+            "amount_gbp": 400000,
+            "source": "60 minutes x £400k/hour",
+            "rationale": "Bantam may need to check or replay ledger, transfer, risk, and reconciliation records."
+          },
+          {
+            "label": "Response/remediation",
+            "amount_gbp": 1100000,
+            "source": "Synthetic incident-response work package",
+            "rationale": "Incident command and forensic triage cost £300k. Ledger investigation and reconciliation cost £420k. Engineering fixes and rollback cost £260k. Legal and communications work costs £120k."
+          },
+          {
+            "label": "Customer/regulatory",
+            "amount_gbp": 560000,
+            "source": "Synthetic customer and regulatory work package",
+            "rationale": "Customer support costs £140k. Complaints, goodwill, and administration cost £210k. Regulatory and legal analysis costs £160k. Extra monitoring costs £50k."
+          }
+        ],
+        "source_note": "These are synthetic planning assumptions. They use the fictional Bantam profile. They are not vendor quotes, measured losses, fines, or claims about the live demo."
+      },
+      "attack_tree": {
+        "root": "Produce unauthorized or incorrect value movement before Bantam contains it",
+        "traversal_cost_gbp": 3500000,
+        "derived_from": "Bantam workflow catalogue flow IDs and public graph projection",
+        "nodes": [
+          {
+            "id": "payment-root",
+            "kind": "GOAL",
+            "title": "Cause ledger-impacting value movement",
+            "operator": "AND",
+            "flow_ids": [
+              "default:post:/v1/transfers",
+              "default:post:/v1/admin/transactions/{transaction_id}/reverse",
+              "default:post:/v1/reconciliation/runs"
+            ]
+          },
+          {
+            "id": "payment-access",
+            "kind": "SUBGOAL",
+            "title": "Obtain a valid customer or privileged session",
+            "operator": "OR",
+            "flow_ids": [
+              "default:post:/v1/auth/login",
+              "default:post:/v1/auth/mfa/totp",
+              "default:post:/v1/auth/mfa/passkey"
+            ]
+          },
+          {
+            "id": "payment-action",
+            "kind": "SUBGOAL",
+            "title": "Reach transfer, SCA, or reversal paths",
+            "operator": "OR",
+            "flow_ids": [
+              "default:post:/v1/sca/challenges",
+              "default:post:/v1/transfers",
+              "default:post:/v1/admin/transactions/{transaction_id}/reverse"
+            ]
+          },
+          {
+            "id": "payment-containment",
+            "kind": "SUBGOAL",
+            "title": "Delay detection, risk alerting, or reconciliation",
+            "operator": "OR",
+            "flow_ids": [
+              "default:system:async-outbox-publish",
+              "default:system:async-risk-worker",
+              "default:post:/v1/reconciliation/runs"
+            ]
+          }
+        ],
+        "edges": [
+          [
+            "payment-root",
+            "payment-access"
+          ],
+          [
+            "payment-root",
+            "payment-action"
+          ],
+          [
+            "payment-root",
+            "payment-containment"
+          ]
+        ],
+        "story": "Bantam processes 2.4M synthetic transfers a year over a £900M payment book. An attacker gets a valid session. They reach a transfer, SCA, or reversal path. Reconciliation and risk review do not stop them in time.",
+        "probability_assumptions": [
+          {
+            "id": "payment-exposure",
+            "title": "A payment-facing route is targeted during the year",
+            "probability": 0.3,
+            "rationale": "Transfer, SCA, and transaction lookup routes face the internet. They also touch money movement or ledger records."
+          },
+          {
+            "id": "payment-access",
+            "title": "Attacker obtains usable customer or admin access",
+            "probability": 0.4,
+            "rationale": "The attacker needs usable customer or admin access. MFA and session controls can reduce this chance."
+          },
+          {
+            "id": "payment-action",
+            "title": "The access reaches transfer, SCA, reversal, or reconciliation state",
+            "probability": 0.7,
+            "rationale": "The attacker reaches transfer, SCA, reversal, or reconciliation state. A successful action can change durable records."
+          },
+          {
+            "id": "payment-missed-containment",
+            "title": "Risk alerting or reconciliation misses containment in time",
+            "probability": 0.7142857,
+            "rationale": "Risk alerts or reconciliation do not contain the action in time. Better monitoring can reduce this chance."
+          }
+        ],
+        "annual_traversal_probability": 0.06,
+        "probability_note": "The annual trigger probability in the FAIR table is set from this path product by default, then remains editable in the browser for reviewer calibration."
+      },
+      "plain_english_summary": "An attacker abuses a money-movement path. The transfer is only one part of the loss. Bantam must restrict payments. It must prove what the ledger should say. It must correct transactions, support customers, and explain the incident.",
+      "countermeasure_case": {
+        "title": "Robust payment-integrity countermeasure",
+        "toggle_label": "Turn on payment-integrity countermeasures",
+        "summary": "Adds dependency assurance, privileged-access hardening, and response signals for the selected payment tree.",
+        "control_ids": [
+          "dependency-build-assurance",
+          "iam-hardening",
+          "detection-response"
+        ],
+        "probability_rationale": [
+          "Dependency and build assurance reduces the chance of a weak package, image, or release reaching production.",
+          "Stronger IAM and session controls reduce the chance that an attacker can use a customer or admin session.",
+          "Detection and response reduces the loss when an attack succeeds. It does not change the displayed traversal chance unless the model treats it as a frequency control."
+        ]
+      }
+    },
+    {
+      "id": "identity-access",
+      "name": "Identity and privileged access",
+      "business_service": "Authenticate users and constrain administrative authority",
+      "narrative": "An attacker gets a valid session or privileged role. They use it to reach sensitive customer or admin operations. Bantam does not stop them in time.",
+      "mitre": [
+        {
+          "id": "T1078",
+          "name": "Valid Accounts",
+          "url": "https://attack.mitre.org/techniques/T1078/"
+        },
+        {
+          "id": "T1556",
+          "name": "Modify Authentication Process",
+          "url": "https://attack.mitre.org/techniques/T1556/"
+        }
+      ],
+      "flow_ids": [
+        "default:post:/v1/auth/login",
+        "default:post:/v1/auth/mfa/setup",
+        "default:post:/v1/auth/mfa/passkey",
+        "default:post:/v1/auth/mfa/totp",
+        "default:post:/v1/me/mfa/enrollment",
+        "default:delete:/v1/me/mfa/passkeys/{credential_id}",
+        "default:delete:/v1/me/mfa/totp",
+        "default:patch:/v1/admin/accounts/{account_id}/status"
+      ],
+      "assumptions": {
+        "annual_event_probability": 0.12,
+        "conditional_loss_probability": 0.65,
+        "base_loss_gbp": 2800000,
+        "detection_mean_hours": 18,
+        "detection_sd_hours": 8,
+        "dwell_shape": 2.2,
+        "dwell_scale_hours": 37.5,
+        "blast_alpha": 2,
+        "blast_beta": 5
+      },
+      "incident": "An attacker abuses a login, MFA path, session, or admin role. They reach sensitive operations.",
+      "why_these_numbers": "The £2.8m estimate covers a full identity incident. Privileged access is restricted for 18 hours. The model allows 30 minutes of session and security state to be rebuilt. Teams reset access, review changes, support customers, and handle legal or regulatory work.",
+      "cost_basis": {
+        "rto_hours": 18,
+        "rpo_minutes": 30,
+        "outage_cost_per_hour_gbp": 70000,
+        "data_reconstruction_cost_per_hour_gbp": 240000,
+        "response_and_remediation_cost_gbp": 900000,
+        "customer_or_regulatory_cost_gbp": 520000,
+        "calculated_base_loss_gbp": 2800000,
+        "line_items": [
+          {
+            "label": "RTO outage",
+            "amount_gbp": 1260000,
+            "source": "18 hours x £70k/hour",
+            "rationale": "Bantam restricts privileged and customer-sensitive services while it restores account trust."
+          },
+          {
+            "label": "RPO reconstruction",
+            "amount_gbp": 120000,
+            "source": "30 minutes x £240k/hour",
+            "rationale": "Bantam may need to rebuild session, MFA, account status, and audit records."
+          },
+          {
+            "label": "Response/remediation",
+            "amount_gbp": 900000,
+            "source": "Synthetic identity-response work package",
+            "rationale": "Incident response costs £250k. Session and MFA resets cost £220k. Audit and customer review cost £200k. Engineering changes cost £150k. Legal and communications work costs £80k."
+          },
+          {
+            "label": "Customer/regulatory",
+            "amount_gbp": 520000,
+            "source": "Synthetic trust-repair work package",
+            "rationale": "Customer support costs £160k. Complaints, goodwill, and administration cost £190k. Privacy and legal review cost £130k. Extra monitoring costs £40k."
+          }
+        ],
+        "source_note": "These are synthetic planning assumptions. They use the fictional Bantam profile. They are not vendor quotes, measured losses, fines, or claims about the live demo."
+      },
+      "attack_tree": {
+        "root": "Use valid access to perform sensitive operations outside intended authority",
+        "traversal_cost_gbp": 2800000,
+        "derived_from": "Bantam workflow catalogue flow IDs and public graph projection",
+        "nodes": [
+          {
+            "id": "identity-root",
+            "kind": "GOAL",
+            "title": "Abuse authenticated or privileged access",
+            "operator": "AND",
+            "flow_ids": [
+              "default:post:/v1/auth/login",
+              "default:patch:/v1/admin/accounts/{account_id}/status"
+            ]
+          },
+          {
+            "id": "identity-auth",
+            "kind": "SUBGOAL",
+            "title": "Pass password and MFA/session checks",
+            "operator": "OR",
+            "flow_ids": [
+              "default:post:/v1/auth/login",
+              "default:post:/v1/auth/mfa/setup",
+              "default:post:/v1/auth/mfa/totp",
+              "default:post:/v1/auth/mfa/passkey"
+            ]
+          },
+          {
+            "id": "identity-privilege",
+            "kind": "SUBGOAL",
+            "title": "Reach administrative or MFA-management capability",
+            "operator": "OR",
+            "flow_ids": [
+              "default:post:/v1/me/mfa/enrollment",
+              "default:delete:/v1/me/mfa/passkeys/{credential_id}",
+              "default:delete:/v1/me/mfa/totp",
+              "default:patch:/v1/admin/accounts/{account_id}/status"
+            ]
+          },
+          {
+            "id": "identity-blast-radius",
+            "kind": "SUBGOAL",
+            "title": "Expand impact across customer or operator workflows",
+            "operator": "OR",
+            "flow_ids": [
+              "default:get:/v1/admin/customers",
+              "default:get:/v1/admin/transactions",
+              "default:get:/v1/audit/events"
+            ]
+          }
+        ],
+        "edges": [
+          [
+            "identity-root",
+            "identity-auth"
+          ],
+          [
+            "identity-root",
+            "identity-privilege"
+          ],
+          [
+            "identity-root",
+            "identity-blast-radius"
+          ]
+        ],
+        "story": "Bantam has about 180k customer accounts and a small operator team. An attacker gets a valid credential, session, or admin role. They reach customer, transaction, or audit operations. Bantam does not reset trust in time.",
+        "probability_assumptions": [
+          {
+            "id": "identity-exposure",
+            "title": "Credential or session material is exposed during the year",
+            "probability": 0.75,
+            "rationale": "Credentials or session data may be exposed during the year. This is a threat assumption. It does not come from the code."
+          },
+          {
+            "id": "identity-auth",
+            "title": "Attacker passes login and MFA/session checks",
+            "probability": 0.5,
+            "rationale": "The attacker must pass login, MFA, or session checks. Stronger MFA and reliable passkeys can reduce this chance."
+          },
+          {
+            "id": "identity-privilege",
+            "title": "The session reaches admin or MFA-management capability",
+            "probability": 0.4,
+            "rationale": "The session reaches admin or MFA management. The graph shows that these endpoints have role and MFA checks."
+          },
+          {
+            "id": "identity-missed-response",
+            "title": "Containment does not revoke or review the session in time",
+            "probability": 0.8,
+            "rationale": "Bantam does not revoke or review the session in time. Faster detection and response can reduce the loss."
+          }
+        ],
+        "annual_traversal_probability": 0.12,
+        "probability_note": "The annual trigger probability in the FAIR table is set from this path product by default, then remains editable in the browser for reviewer calibration."
+      },
+      "plain_english_summary": "An attacker abuses a valid login or admin session. Bantam must reset trust. It revokes sessions and checks MFA and admin changes. It reviews customer exposure, supports users, and restores control of privileged access.",
+      "countermeasure_case": {
+        "title": "Robust identity countermeasure",
+        "toggle_label": "Turn on identity countermeasures",
+        "summary": "Adds phishing-resistant privileged access controls and response signals for the selected identity tree.",
+        "control_ids": [
+          "iam-hardening",
+          "detection-response"
+        ],
+        "probability_rationale": [
+          "Phishing-resistant MFA and role reviews reduce the chance that exposed credentials become useful.",
+          "Stronger session boundaries and admin alerts reduce the chance that access reaches sensitive operations.",
+          "Detection and response reduces the loss when abuse still happens. Bantam can revoke access and review changes sooner."
+        ]
+      }
+    },
+    {
+      "id": "service-availability",
+      "name": "Service and third-party availability",
+      "business_service": "Keep API, ledger, event, notification, and risk paths recoverable",
+      "narrative": "Bantam loses an important service or dependency. The outage lasts longer than the bank can accept. Recovery may also leave data or events in doubt.",
+      "mitre": [
+        {
+          "id": "T1489",
+          "name": "Service Stop",
+          "url": "https://attack.mitre.org/techniques/T1489/"
+        },
+        {
+          "id": "T1499",
+          "name": "Endpoint Denial of Service",
+          "url": "https://attack.mitre.org/techniques/T1499/"
+        }
+      ],
+      "flow_ids": [
+        "default:get:/healthz",
+        "default:system:async-outbox-publish",
+        "default:system:async-notification-worker",
+        "default:system:async-risk-worker",
+        "default:get:/v1/notifications",
+        "default:get:/v1/risk/alerts",
+        "default:post:/v1/reconciliation/runs"
+      ],
+      "assumptions": {
+        "annual_event_probability": 0.03,
+        "conditional_loss_probability": 0.95,
+        "base_loss_gbp": 5000000,
+        "detection_mean_hours": 8,
+        "detection_sd_hours": 4,
+        "dwell_shape": 1.8,
+        "dwell_scale_hours": 21.15,
+        "blast_alpha": 2,
+        "blast_beta": 5
+      },
+      "incident": "The API, database, NATS, workers, certificates, or deployment path fails. The outage lasts beyond the impact tolerance.",
+      "why_these_numbers": "The £5.0m estimate covers a full availability incident. Customer and API services are disrupted for eight hours. The model allows 15 minutes of event state to be checked or rebuilt. Teams restore service, verify the ledger, support customers, and explain the outage.",
+      "cost_basis": {
+        "rto_hours": 8,
+        "rpo_minutes": 15,
+        "outage_cost_per_hour_gbp": 425000,
+        "data_reconstruction_cost_per_hour_gbp": 400000,
+        "response_and_remediation_cost_gbp": 950000,
+        "customer_or_regulatory_cost_gbp": 550000,
+        "calculated_base_loss_gbp": 5000000,
+        "line_items": [
+          {
+            "label": "RTO outage",
+            "amount_gbp": 3400000,
+            "source": "8 hours x £425k/hour",
+            "rationale": "Core services are unavailable or cannot be trusted during the outage."
+          },
+          {
+            "label": "RPO reconstruction",
+            "amount_gbp": 100000,
+            "source": "15 minutes x £400k/hour",
+            "rationale": "Bantam may need to replay or verify events, notifications, alerts, and reconciliation records."
+          },
+          {
+            "label": "Response/remediation",
+            "amount_gbp": 950000,
+            "source": "Synthetic recovery work package",
+            "rationale": "Infrastructure restore costs £280k. Database and NATS checks cost £230k. Rollback and certificate work cost £170k. Incident command and communications cost £170k. Extra support costs £100k."
+          },
+          {
+            "label": "Customer/regulatory",
+            "amount_gbp": 550000,
+            "source": "Synthetic outage-impact work package",
+            "rationale": "Outage support costs £140k. Goodwill and administration cost £190k. Regulatory analysis costs £120k. Customer and status communications cost £100k."
+          }
+        ],
+        "source_note": "These are synthetic planning assumptions. They use the fictional Bantam profile. They are not vendor quotes, measured losses, fines, or claims about the live demo."
+      },
+      "attack_tree": {
+        "root": "Keep important Bantam services unavailable or inconsistent past tolerance",
+        "traversal_cost_gbp": 5000000,
+        "derived_from": "Bantam workflow catalogue flow IDs and public graph projection",
+        "nodes": [
+          {
+            "id": "availability-root",
+            "kind": "GOAL",
+            "title": "Disrupt service or event processing beyond tolerance",
+            "operator": "AND",
+            "flow_ids": [
+              "default:get:/healthz",
+              "default:system:async-outbox-publish",
+              "default:system:async-notification-worker",
+              "default:system:async-risk-worker"
+            ]
+          },
+          {
+            "id": "availability-entry",
+            "kind": "SUBGOAL",
+            "title": "Impact API, worker, database, or message-bus dependency",
+            "operator": "OR",
+            "flow_ids": [
+              "default:get:/healthz",
+              "default:system:async-outbox-publish",
+              "default:system:async-notification-worker",
+              "default:system:async-risk-worker"
+            ]
+          },
+          {
+            "id": "availability-state",
+            "kind": "SUBGOAL",
+            "title": "Create recovery or replay uncertainty",
+            "operator": "OR",
+            "flow_ids": [
+              "default:get:/v1/notifications",
+              "default:get:/v1/risk/alerts",
+              "default:post:/v1/reconciliation/runs"
+            ]
+          },
+          {
+            "id": "availability-recovery",
+            "kind": "SUBGOAL",
+            "title": "Force restore, verification, and customer communication effort",
+            "operator": "AND",
+            "flow_ids": [
+              "default:post:/v1/reconciliation/runs",
+              "default:system:async-notification-worker"
+            ]
+          }
+        ],
+        "edges": [
+          [
+            "availability-root",
+            "availability-entry"
+          ],
+          [
+            "availability-root",
+            "availability-state"
+          ],
+          [
+            "availability-root",
+            "availability-recovery"
+          ]
+        ],
+        "story": "Bantam runs on one host with Postgres, NATS, an API, a web app, and workers. A service or event path fails. Customers and operators cannot trust the current state. Recovery takes longer than the bank can accept.",
+        "probability_assumptions": [
+          {
+            "id": "availability-exposure",
+            "title": "Host, API, database, NATS, worker, TLS, or deployment dependency is stressed",
+            "probability": 0.4,
+            "rationale": "A host, API, database, NATS, worker, TLS, or deployment dependency is stressed. One host makes these dependencies more concentrated."
+          },
+          {
+            "id": "availability-failure",
+            "title": "The dependency impact stops or corrupts an important path",
+            "probability": 0.3,
+            "rationale": "The failure stops or damages an important path. The graph links health, events, notifications, risk, and reconciliation to service continuity."
+          },
+          {
+            "id": "availability-state",
+            "title": "Recovery creates replay or state uncertainty",
+            "probability": 0.5,
+            "rationale": "Recovery leaves event or state records in doubt. Bantam may need to replay or verify them."
+          },
+          {
+            "id": "availability-delayed-recovery",
+            "title": "Recovery exceeds the board tolerance",
+            "probability": 0.5,
+            "rationale": "Recovery takes longer than the bank can accept. The outage time drives most of this scenario's cost."
+          }
+        ],
+        "annual_traversal_probability": 0.03,
+        "probability_note": "The annual trigger probability in the FAIR table is set from this path product by default, then remains editable in the browser for reviewer calibration."
+      },
+      "plain_english_summary": "An attacker or failure stops Bantam for too long. Unavailable service causes most of the loss. Bantam must also recover state. It checks that workers did not miss or repeat events. It then explains the recovery to customers.",
+      "countermeasure_case": {
+        "title": "Robust availability countermeasure",
+        "toggle_label": "Turn on availability countermeasures",
+        "summary": "Adds dependency assurance, recovery engineering, and response signals for the selected availability tree.",
+        "control_ids": [
+          "dependency-build-assurance",
+          "detection-response",
+          "recovery-engineering"
+        ],
+        "probability_rationale": [
+          "Dependency and build assurance reduces the chance that a weak release causes an outage.",
+          "Recovery engineering reduces the chance that a failure lasts beyond the impact tolerance.",
+          "Detection and response reduces the loss by finding service and event problems sooner."
+        ]
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "dependency-build-assurance",
+      "name": "Dependency and build assurance",
+      "short_name": "Dependency assurance",
+      "description": "Generate a CycloneDX or SPDX SBOM, enforce dependency review and patch SLAs, build images in CI, and deploy digest-pinned artifacts. This is software composition analysis, not Bantam's strong customer authentication service.",
+      "phase": "Year 1 prevention",
+      "cost_y1_gbp": 92000,
+      "reductions": {
+        "payment-integrity": {
+          "frequency": 0.65,
+          "magnitude": 0
+        },
+        "service-availability": {
+          "frequency": 0.25,
+          "magnitude": 0
+        }
+      },
+      "cost_source": "Synthetic year-one programme estimate: tooling plus engineering, security-review, process, and contingency time. Not a vendor quote.",
+      "cost_breakdown": [
+        {
+          "label": "SBOM and dependency-review tooling",
+          "amount_gbp": 18000,
+          "cost_type": "recurring",
+          "rationale": "Annual software composition tooling and dependency-review service cost."
+        },
+        {
+          "label": "CI image build, signing, and digest-pinning work",
+          "amount_gbp": 22000,
+          "cost_type": "one_time",
+          "rationale": "Engineering implementation for provenance-aware CI image builds and digest-pinned deployment."
+        },
+        {
+          "label": "Patch-SLA automation and engineering remediation time",
+          "amount_gbp": 32000,
+          "cost_type": "one_time",
+          "rationale": "Automation and remediation work to make patch SLAs executable in the repository and deployment flow."
+        },
+        {
+          "label": "Security review, runbook, and team enablement",
+          "amount_gbp": 12000,
+          "cost_type": "one_time",
+          "rationale": "Initial review, runbook writing, and team enablement needed to operate the new control."
+        },
+        {
+          "label": "Contingency",
+          "amount_gbp": 8000,
+          "cost_type": "one_time",
+          "rationale": "First-year uncertainty allowance for setup effort and integration follow-up."
+        }
+      ]
+    },
+    {
+      "id": "iam-hardening",
+      "name": "Privileged IAM and session hardening",
+      "short_name": "IAM hardening",
+      "description": "Require phishing-resistant MFA for privileged roles, review role grants and sessions, test proxy identity boundaries, and alert on unusual administrative actions.",
+      "phase": "Year 1 prevention",
+      "cost_y1_gbp": 115000,
+      "reductions": {
+        "payment-integrity": {
+          "frequency": 0.1,
+          "magnitude": 0
+        },
+        "identity-access": {
+          "frequency": 0.65,
+          "magnitude": 0
+        }
+      },
+      "cost_source": "Synthetic year-one programme estimate: tooling plus engineering, security-review, process, and contingency time. Not a vendor quote.",
+      "cost_breakdown": [
+        {
+          "label": "Phishing-resistant MFA rollout and admin hardware",
+          "amount_gbp": 25000,
+          "cost_type": "one_time",
+          "rationale": "Initial rollout of phishing-resistant MFA for administrators, including hardware or enrollment support."
+        },
+        {
+          "label": "Privileged-role and session-boundary engineering",
+          "amount_gbp": 38000,
+          "cost_type": "one_time",
+          "rationale": "Engineering work to tighten privileged role and session boundaries in the application."
+        },
+        {
+          "label": "Audit alerts and unusual-admin-action monitoring",
+          "amount_gbp": 24000,
+          "cost_type": "recurring",
+          "rationale": "Monitoring and alerting cost for unusual administrative actions after launch."
+        },
+        {
+          "label": "Access review process and testing",
+          "amount_gbp": 18000,
+          "cost_type": "one_time",
+          "rationale": "Initial access-review process design and test execution."
+        },
+        {
+          "label": "Contingency",
+          "amount_gbp": 10000,
+          "cost_type": "one_time",
+          "rationale": "First-year uncertainty allowance for rollout and access-cleanup effort."
+        }
+      ]
+    },
+    {
+      "id": "detection-response",
+      "name": "Detection and incident response",
+      "short_name": "Detection and response",
+      "description": "Centralize audit, authentication, ledger, outbox, and infrastructure signals; rehearse triage and notification decisions against important-business-service tolerances.",
+      "phase": "Year 2 detection",
+      "cost_y1_gbp": 100000,
+      "reductions": {
+        "payment-integrity": {
+          "frequency": 0,
+          "magnitude": 0.25
+        },
+        "identity-access": {
+          "frequency": 0,
+          "magnitude": 0.25
+        },
+        "service-availability": {
+          "frequency": 0,
+          "magnitude": 0.2
+        }
+      },
+      "cost_source": "Synthetic year-one programme estimate: tooling plus engineering, security-review, process, and contingency time. Not a vendor quote.",
+      "cost_breakdown": [
+        {
+          "label": "Central log collection and retention",
+          "amount_gbp": 30000,
+          "cost_type": "recurring",
+          "rationale": "Log collection, retention, and query capacity for audit, auth, ledger, worker, and infrastructure signals."
+        },
+        {
+          "label": "Auth, ledger, outbox, and infrastructure detections",
+          "amount_gbp": 25000,
+          "cost_type": "one_time",
+          "rationale": "Engineering work to create and tune detections for auth, ledger, outbox, and infrastructure events."
+        },
+        {
+          "label": "Incident runbooks and tabletop exercises",
+          "amount_gbp": 20000,
+          "cost_type": "one_time",
+          "rationale": "Initial incident runbook writing and tabletop exercise facilitation."
+        },
+        {
+          "label": "On-call tuning and support tooling",
+          "amount_gbp": 15000,
+          "cost_type": "recurring",
+          "rationale": "Ongoing on-call tuning and support tooling needed to keep detections useful."
+        },
+        {
+          "label": "Contingency",
+          "amount_gbp": 10000,
+          "cost_type": "one_time",
+          "rationale": "First-year uncertainty allowance for alert tuning and playbook follow-up."
+        }
+      ]
+    },
+    {
+      "id": "recovery-engineering",
+      "name": "Recovery engineering and resilience testing",
+      "short_name": "Recovery engineering",
+      "description": "Automate restore tests, monitor worker freshness, exercise certificate and dependency failures, and prove recovery within a board-approved impact tolerance.",
+      "phase": "Year 2 resilience",
+      "cost_y1_gbp": 93000,
+      "reductions": {
+        "payment-integrity": {
+          "frequency": 0,
+          "magnitude": 0.2
+        },
+        "identity-access": {
+          "frequency": 0,
+          "magnitude": 0.1
+        },
+        "service-availability": {
+          "frequency": 0,
+          "magnitude": 0.65
+        }
+      },
+      "cost_source": "Synthetic year-one programme estimate: tooling plus engineering, security-review, process, and contingency time. Not a vendor quote.",
+      "cost_breakdown": [
+        {
+          "label": "Database restore automation and testing",
+          "amount_gbp": 28000,
+          "cost_type": "one_time",
+          "rationale": "Engineering work to automate and verify database restore tests."
+        },
+        {
+          "label": "NATS and worker freshness monitoring",
+          "amount_gbp": 18000,
+          "cost_type": "recurring",
+          "rationale": "Ongoing monitoring for NATS, worker freshness, and event-processing health."
+        },
+        {
+          "label": "Resilience exercises for host, cert, and dependency failure",
+          "amount_gbp": 22000,
+          "cost_type": "one_time",
+          "rationale": "Initial resilience exercises for host loss, certificate failure, and dependency failure."
+        },
+        {
+          "label": "Rollback and recovery runbooks",
+          "amount_gbp": 15000,
+          "cost_type": "one_time",
+          "rationale": "Runbook development for rollback and recovery decisions."
+        },
+        {
+          "label": "Contingency",
+          "amount_gbp": 10000,
+          "cost_type": "one_time",
+          "rationale": "First-year uncertainty allowance for recovery-test follow-up."
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "id": "baseline",
+      "name": "Baseline assumptions",
+      "control_ids": []
+    },
+    {
+      "id": "year-1",
+      "name": "Year 1 prevention",
+      "control_ids": [
+        "dependency-build-assurance",
+        "iam-hardening"
+      ]
+    },
+    {
+      "id": "two-year",
+      "name": "Two-year programme",
+      "control_ids": [
+        "dependency-build-assurance",
+        "iam-hardening",
+        "detection-response",
+        "recovery-engineering"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "name": "FCA operational resilience",
+      "url": "https://www.fca.org.uk/firms/operational-resilience",
+      "purpose": "Important business services and impact tolerances"
+    },
+    {
+      "name": "FCA PS21/3",
+      "url": "https://www.fca.org.uk/publications/policy-statements/ps21-3-building-operational-resilience",
+      "purpose": "Rules effective from 31 March 2022 and the 31 March 2025 transition deadline"
+    },
+    {
+      "name": "Bank of England CBEST Implementation Guide",
+      "url": "https://www.bankofengland.co.uk/financial-stability/operational-resilience-of-the-financial-sector/cbest-threat-intelligence-led-assessments-implementation-guide",
+      "purpose": "Threat-intelligence-led assessment and remediation"
+    },
+    {
+      "name": "ICO personal data breach guide",
+      "url": "https://ico.org.uk/for-organisations/report-a-breach/personal-data-breach/personal-data-breaches-a-guide/",
+      "purpose": "Risk-based UK GDPR breach notification and phased reporting"
+    },
+    {
+      "name": "EU DORA overview",
+      "url": "https://www.eiopa.europa.eu/digital-operational-resilience-act-dora_en",
+      "purpose": "EU—not UK—digital operational resilience requirements applying from 17 January 2025"
+    },
+    {
+      "name": "Open FAIR Risk Taxonomy",
+      "url": "https://pubs.opengroup.org/onlinepubs/9699919899/toc.pdf",
+      "purpose": "Loss event frequency and loss magnitude taxonomy"
+    },
+    {
+      "name": "MITRE ATT&CK Enterprise",
+      "url": "https://attack.mitre.org/techniques/enterprise/",
+      "purpose": "Adversary behavior vocabulary"
+    }
+  ],
+  "loss_assumption_basis": {
+    "status": "illustrative",
+    "boundary": "The workflow graph identifies code-backed routes, functions, checks, database effects, and operational flows. It does not infer exploitability, event frequency, control effectiveness, outage cost, reconstruction cost, response cost, customer harm, or regulatory impact. Those values are visible assumptions.",
+    "costing_formula": "base_loss_gbp = rto_hours * outage_cost_per_hour_gbp + (rpo_minutes / 60) * data_reconstruction_cost_per_hour_gbp + response_and_remediation_cost_gbp + customer_or_regulatory_cost_gbp",
+    "reviewer_action": "Replace each RTO, RPO, hourly cost, response cost, and customer/regulatory cost with finance, operations, incident, and service-owner evidence before decision use.",
+    "cost_sources": [
+      "RTO outage cost is the assumed business cost per hour while an important Bantam service is unavailable or untrusted.",
+      "RPO reconstruction cost is the assumed cost of rebuilding, verifying, or replaying lost or uncertain state.",
+      "Response/remediation cost is a synthetic planning estimate for incident command, engineering, forensic review, rollback, data validation, and legal/comms coordination.",
+      "Customer/regulatory cost is a synthetic planning estimate for customer support, complaints, goodwill, regulatory analysis, reporting, and post-incident monitoring."
+    ]
+  },
+  "business_profile": {
+    "status": "fictional calibration story",
+    "firm": "Bantam is modelled as a small-to-mid UK digital bank for demonstration, not as a real regulated balance sheet.",
+    "annual_revenue_gbp": 42000000,
+    "customer_accounts": 180000,
+    "active_monthly_customers": 90000,
+    "annual_payment_volume_gbp": 900000000,
+    "annual_transfer_count": 2400000,
+    "operating_days_per_year": 365,
+    "impact_tolerance_gbp": 1200000,
+    "average_transfer_gbp": 375,
+    "assumption_source": "Synthetic calibration assumption for the report, not measured Bantam production data."
+  },
+  "reader_story": {
+    "title": "If this path is hacked, what does it cost?",
+    "summary": "The report starts with a fictional Bantam operating profile, chooses a code-backed incident path, estimates how often that full path might happen in a year, then prices the bad day if it becomes material. The Monte Carlo lab lets a reviewer select one attack tree or the whole portfolio and test whether prevention spend is sensible.",
+    "plain_english_flow": [
+      "Bantam runs customer accounts, transfers, MFA, admin operations, workers, and reconciliation.",
+      "An attacker traverses a specific path, such as valid access followed by a transfer or privileged action.",
+      "If monitoring, reconciliation, or recovery does not contain the path quickly enough, the incident creates business loss.",
+      "The report compares that possible loss with a prevention and recovery programme."
+    ]
+  }
+}

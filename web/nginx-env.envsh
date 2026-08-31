@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# This file is sourced by the official Nginx entrypoint before it renders
+# /etc/nginx/templates. Keep the deployment trust boundary explicit: a local
+# first edge must replace attacker-controlled forwarding metadata, while a
+# reviewed upstream edge (Caddy or Cloud Run) supplies a sanitized header that
+# Nginx must preserve for Bantam's right-to-left client-IP resolution.
+
+: "${BANTAM_API_UPSTREAM:=http://bantam-api:8080/}"
+: "${BANTAM_PROXY_MODE:=edge}"
+
+case "$BANTAM_PROXY_MODE" in
+    edge)
+        BANTAM_X_FORWARDED_FOR='$remote_addr'
+        BANTAM_X_FORWARDED_PROTO='$scheme'
+        ;;
+    trusted-edge|cloud-run)
+        BANTAM_X_FORWARDED_FOR='$http_x_forwarded_for'
+        BANTAM_X_FORWARDED_PROTO='$http_x_forwarded_proto'
+        ;;
+    *)
+        echo >&2 "BANTAM_PROXY_MODE must be 'edge', 'trusted-edge', or 'cloud-run'"
+        exit 1
+        ;;
+esac
+
+export BANTAM_API_UPSTREAM BANTAM_X_FORWARDED_FOR BANTAM_X_FORWARDED_PROTO

@@ -1,0 +1,25 @@
+{
+	admin off
+	email {$ACME_EMAIL}
+	servers {
+		protocols h1 h2
+	}
+}
+
+www.{$BANTAM_DOMAIN} {
+	redir https://{$BANTAM_DOMAIN}{uri} permanent
+}
+
+{$BANTAM_DOMAIN} {
+	encode zstd gzip
+	header -Server
+	reverse_proxy web:3000 {
+		# Replace, rather than append to, client-controlled forwarding metadata.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+	log {
+		output stdout
+		format json
+	}
+}

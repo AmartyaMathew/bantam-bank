@@ -1,0 +1,328 @@
+name: bantam-production
+
+x-json-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+x-data-depends: &data-depends
+  postgres:
+    condition: service_healthy
+  nats:
+    condition: service_healthy
+
+x-runtime-depends: &runtime-depends
+  postgres:
+    condition: service_healthy
+  nats:
+    condition: service_healthy
+  migrate:
+    condition: service_completed_successfully
+
+x-bantam-environment: &bantam-environment
+  APP_ENV: production
+  HTTP_ADDR: :8080
+  DATABASE_URL: "postgresql://bantam:${POSTGRES_PASSWORD:?run prepare.sh first}@postgres:5432/bantam?sslmode=verify-full&sslrootcert=/run/bantam-tls/ca.crt"
+  DATABASE_CONNECTION_MODE: direct
+  DATABASE_POOL_MIN_SIZE: "1"
+  DATABASE_POOL_MAX_SIZE: "4"
+  EVENT_BUS: nats
+  NATS_URL: "tls://bantam:${NATS_PASSWORD:?run prepare.sh first}@nats:4222"
+  SSL_CERT_FILE: /run/bantam-tls/ca-bundle.crt
+  JWT_SECRET: ${JWT_SECRET:?run prepare.sh first}
+  SCA_SECRET: ${SCA_SECRET:?run prepare.sh first}
+  CLAIMS_SECRET: ${CLAIMS_SECRET:?run prepare.sh first}
+  MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?run prepare.sh first}
+  MFA_TRANSACTION_TTL: 5m
+  MFA_STEP_UP_TTL: 5m
+  WEBAUTHN_RP_ID: ${BANTAM_DOMAIN:?run prepare.sh first}
+  WEBAUTHN_RP_NAME: Bantam
+  WEBAUTHN_ALLOWED_ORIGINS: https://${BANTAM_DOMAIN:?run prepare.sh first}
+  JWT_TTL: 15m
+  SCA_TTL: 5m
+  SCA_THRESHOLD_MINOR: "500000"
+  RISK_THRESHOLD_MINOR: "500000"
+  OUTBOX_POLL_INTERVAL: 1s
+  REQUEST_BODY_LIMIT_BYTES: "1048576"
+  AUTH_ACCOUNT_RATE_LIMIT_MAX: "10"
+  AUTH_IP_RATE_LIMIT_MAX: "50"
+  AUTH_RATE_LIMIT_WINDOW: 5m
+  TRUSTED_PROXY_CIDRS: 172.30.0.0/24
+  ALLOWED_HOSTS: ${BANTAM_DOMAIN:?run prepare.sh first}
+  DEMO_MODE: "false"
+  ALLOW_DEMO_SEED: "false"
+  API_DOCS_ENABLED: "false"
+  RUN_MIGRATIONS_ON_STARTUP: "false"
+  ASVS_LIVE_RUNNER_ENABLED: "false"
+  ASVS_AI_GENERATOR_ENABLED: "false"
+  ASVS_TARGET_COMMIT: ${BANTAM_IMAGE_TAG:-local}
+  BANTAM_DOMAIN: ${BANTAM_DOMAIN:?run prepare.sh first}
+  BANTAM_SUPER_ADMIN_EMAIL: ${BANTAM_SUPER_ADMIN_EMAIL:-}
+
+x-bantam-runtime: &bantam-runtime
+  image: ${BANTAM_API_IMAGE:?run prepare.sh first}
+  build:
+    context: ../..
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:size=32m,noexec,nosuid,nodev
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 256
+  mem_limit: 512m
+  logging: *json-logging
+  volumes:
+    - ./runtime/tls/client:/run/bantam-tls:ro
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    init: true
+    restart: unless-stopped
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?run prepare.sh first}
+      BANTAM_DOMAIN: ${BANTAM_DOMAIN:?run prepare.sh first}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    pids_limit: 64
+    mem_limit: 96m
+    logging: *json-logging
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - edge
+
+  web:
+    image: ${BANTAM_WEB_IMAGE:?run prepare.sh first}
+    build:
+      context: ../../web
+      target: production
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d:size=1m,mode=0755
+      - /var/cache/nginx:size=16m,noexec,nosuid,nodev
+      - /var/run:size=1m,noexec,nosuid,nodev
+      - /tmp:size=16m,noexec,nosuid,nodev
+    environment:
+      BANTAM_API_UPSTREAM: http://bantam-api:8080/
+      BANTAM_PROXY_MODE: trusted-edge
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    pids_limit: 64
+    mem_limit: 96m
+    logging: *json-logging
+    depends_on:
+      bantam-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - edge
+      - app
+
+  migrate:
+    <<: *bantam-runtime
+    command: ["migrate"]
+    restart: "no"
+    environment: *bantam-environment
+    depends_on: *data-depends
+    networks:
+      - data
+
+  bantam-api:
+    <<: *bantam-runtime
+    command: ["api"]
+    environment:
+      <<: *bantam-environment
+      ASPIS_MISTRAL_API_KEY: ${ASPIS_MISTRAL_API_KEY:-}
+      WORKFLOW_GITHUB_TOKEN: ${WORKFLOW_GITHUB_TOKEN:-}
+    depends_on: *runtime-depends
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, urllib.request; request = urllib.request.Request('http://localhost:8080/healthz', headers={'Host': os.environ['BANTAM_DOMAIN']}); urllib.request.urlopen(request, timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - app
+      - data
+      - egress
+
+  outbox-publisher:
+    <<: *bantam-runtime
+    command: ["outbox-publisher"]
+    environment: *bantam-environment
+    mem_limit: 128m
+    pids_limit: 64
+    depends_on: *runtime-depends
+    networks:
+      - data
+
+  risk-worker:
+    <<: *bantam-runtime
+    command: ["risk-worker"]
+    environment: *bantam-environment
+    mem_limit: 128m
+    pids_limit: 64
+    depends_on: *runtime-depends
+    networks:
+      - data
+
+  notification-worker:
+    <<: *bantam-runtime
+    command: ["notification-worker"]
+    environment: *bantam-environment
+    mem_limit: 128m
+    pids_limit: 64
+    depends_on: *runtime-depends
+    networks:
+      - data
+
+  postgres:
+    image: postgres:16-alpine
+    init: true
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bantam
+      POSTGRES_USER: bantam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run prepare.sh first}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=trust
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
+      - -c
+      - ssl_cert_file=/run/tls/postgres.crt
+      - -c
+      - ssl_key_file=/run/tls/postgres.key
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - max_connections=40
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - log_min_duration_statement=1000
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./runtime/tls/postgres:/run/tls:ro
+    tmpfs:
+      - /var/run/postgresql:size=16m,nosuid,nodev
+    shm_size: 256m
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    stop_grace_period: 60s
+    logging: *json-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -h /var/run/postgresql -U bantam -d bantam"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+    networks:
+      - data
+
+  nats:
+    image: nats:2.11-alpine
+    init: true
+    restart: unless-stopped
+    command: ["-c", "/etc/nats/nats.conf"]
+    environment:
+      NATS_BANTAM_USER: bantam
+      NATS_BANTAM_PASSWORD: ${NATS_PASSWORD:?run prepare.sh first}
+      NATS_JETSTREAM_KEY: ${NATS_JETSTREAM_KEY:?run prepare.sh first}
+    volumes:
+      - nats-data:/data
+      - ./nats/nats.conf:/etc/nats/nats.conf:ro
+      - ./runtime/tls/nats:/run/tls:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 96
+    mem_limit: 192m
+    stop_grace_period: 30s
+    logging: *json-logging
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - data
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:
+  nats-data:
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24
+  app:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+  data:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
+  egress:
+    ipam:
+      config:
+        - subnet: 172.27.0.0/24

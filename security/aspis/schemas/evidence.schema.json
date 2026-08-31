@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bantam.local/schemas/aspis/evidence.schema.json",
+  "title": "Aspis normalized evidence bundle",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "records"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "stringList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "record": {
+      "type": "object",
+      "required": [
+        "control_id",
+        "title",
+        "framework",
+        "framework_ids",
+        "target",
+        "status",
+        "severity",
+        "confidence",
+        "source_evidence",
+        "execution_evidence",
+        "counter_evidence",
+        "remediation",
+        "limitations",
+        "target_commit",
+        "generated_by",
+        "validated_by"
+      ],
+      "properties": {
+        "control_id": {
+          "type": "string",
+          "pattern": "^ASPIS-[A-Z0-9-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "framework": {
+          "type": "string",
+          "minLength": 1
+        },
+        "framework_ids": {
+          "$ref": "#/$defs/stringList",
+          "minItems": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive",
+            "error"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "source_evidence": {
+          "$ref": "#/$defs/stringList",
+          "minItems": 1
+        },
+        "execution_evidence": {
+          "$ref": "#/$defs/stringList"
+        },
+        "counter_evidence": {
+          "$ref": "#/$defs/stringList"
+        },
+        "remediation": {
+          "type": "string"
+        },
+        "limitations": {
+          "$ref": "#/$defs/stringList"
+        },
+        "target_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generated_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validated_by": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
